@@ -13,6 +13,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
 <script>
+function showImportScreen() {
+  document.body.innerHTML = `
+    <h1>Import equipment list</h1>
+    <input type="file" accept=".json,.csv" id="import">`;
+  
   // 1. Open the DB once, at the top
   const dbPromise = idb.openDB("pmpal", 1, {
     upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
