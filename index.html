@@ -172,13 +172,18 @@
         <h1>${asset.id}</h1>
         <p>${asset.description}</p>
         <p>${asset.location}</p>
-        <button id="start">Start PM</button>`;
+        <button id="start">Start PM</button>
+        <button id="editPM">Edit PM</button>`;
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("start").onclick = () => {
         const proc = findProcedure(asset);
         if (!proc) { alert("No PM procedure for this equipment yet"); return; }
         runProcedure(asset, proc);
+      };
+      document.getElementById("editPM").onclick = () => {
+        const proc = findProcedure(asset);
+        showProcEditor(proc);
       };
     }
 
