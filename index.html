@@ -68,18 +68,25 @@
       document.getElementById("import").onchange = e => importFile(e.target.files[0]);
     }
 
-    function showHomeScreen() {
+    let all = [];
+
+    async function showHomeScreen() {
       app.innerHTML = `
         <h1>PM-pal</h1>
-        <input id="search" placeholder="Asset ID" inputmode="text">
-        <div id="result"></div>`;
+        <input id="search" placeholder="ID, description, or location"
+               autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <div id="results"></div>`;
 
-      document.getElementById("search").oninput = async e => {
-        const db = await dbPromise;
-        const asset = await db.get("assets", e.target.value.trim());
-        document.getElementById("result").textContent = asset
-          ? `${asset.description} (${asset.location})`
-          : "Not found";
+      all = await (await dbPromise).getAll("assets");
+
+      document.getElementById("search").oninput = e => {
+        const q = e.target.value.trim().toUpperCase();
+        if (!q) return;
+        const hits = all
+          .filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q))
+          .slice(0, 20);
+        document.getElementById("results").innerHTML =
+          hits.map(a => `<div>${a.id}: ${a.description} (${a.location})</div>`).join("");
       };
     }
 
