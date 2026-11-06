@@ -228,7 +228,17 @@
 }
 
     function showProcEditor(proc) {
-      const p = structuredClone(proc);
+
+      const p = proc
+    ? structuredClone(proc)
+    : {
+        id: crypto.randomUUID(),
+        name: "",
+        version: 1,
+        intervalMonths: 12,
+        match: [],
+        steps: []
+      };
 
       function draw() {
         app.innerHTML = `
