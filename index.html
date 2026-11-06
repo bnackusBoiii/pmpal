@@ -71,7 +71,7 @@
     function showHomeScreen() {
       app.innerHTML = `
         <h1>PM-pal</h1>
-        <input id="search" placeholder="Asset ID" inputmode="numeric">
+        <input id="search" placeholder="Asset ID" inputmode="text">
         <div id="result"></div>`;
 
       document.getElementById("search").oninput = async e => {
