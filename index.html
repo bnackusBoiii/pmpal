@@ -26,6 +26,7 @@
   <script>
     const app = document.getElementById("app");
 
+    const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
     const procedures = [
   {
     id: "centrifuge-pm",
@@ -171,38 +172,43 @@
     }
 
     function runProcedure(asset, proc) {
-      let i = 0;
-      const values = {};
-
-      function render() {
-        const s = proc.steps[i];
+      const fields = proc.steps.map((s, i) => {
         const input =
-          s.kind === "check"  ? `<input id="val" type="checkbox">` :
-          s.kind === "number" ? `<input id="val" type="number" inputmode="decimal">` :
-                            `<input id="val" type="text">`;
+          s.kind === "check"  ? `<input type="checkbox" id="f${i}">` :
+          s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
+                            `<input type="text" id="f${i}">`;
+          return `<label class="step">
+            <span>${s.label}${s.required ? " *" : ""}</span>
+            ${input}
+            </label>`;
+            }).join("");
 
-        app.innerHTML = `
-          <p>Step ${i + 1} of ${proc.steps.length}</p>
-          <h2>${s.label}</h2>
-          ${input}
-          <button id="next">${i === proc.steps.length - 1 ? "Finish" : "Next"}</button>`;
+      app.innerHTML = `
+        <button id="back">← Back</button>
+        <h2>${proc.name}</h2>
+        <p>${asset.id}: ${asset.description}</p>
+        ${fields}
+        <button id="finish">Finish</button>`;
 
-        document.getElementById("next").onclick = () => {
-          const el = document.getElementById("val");
+      document.getElementById("back").onclick = () => showAssetScreen(asset);
+
+      document.getElementById("finish").onclick = async () => {
+        const values = {};
+        let missing = false;
+
+        proc.steps.forEach((s, i) => {
+          const el = document.getElementById("f" + i);
           const v = s.kind === "check" ? el.checked : el.value.trim();
-          if (s.required && (v === "" || v === false)) { alert("Required"); return; }
+          const empty = v === "" || (s.kind === "check" && v === false);
+          el.closest(".step").classList.toggle("missing", s.required && empty);
+          if (s.required && empty) missing = true;
           values[s.label] = v;
-          i++;
-          i < proc.steps.length ? render() : finish();
-        };
-      }
+        });
 
-      function finish() {
-
-      }
-
-      render();
-    }
+        if (missing) return;
+        // save the record here
+  };
+}
 
     // ---------- Boot ----------
     async function boot() {
