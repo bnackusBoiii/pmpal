@@ -184,7 +184,7 @@
       };
       document.getElementById("editPM").onclick = () => {
         const proc = findProcedure(asset);
-        showProcEditor(proc);
+        showProcEditor(proc, asset);
       };
     }
 
@@ -227,7 +227,7 @@
   };
 }
 
-    function showProcEditor(proc) {
+    function showProcEditor(proc, asset) {
 
       const p = proc
     ? structuredClone(proc)
@@ -236,7 +236,7 @@
         name: "",
         version: 1,
         intervalMonths: 12,
-        match: [],
+        match: asset.description,
         steps: []
       };
 
