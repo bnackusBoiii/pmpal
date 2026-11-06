@@ -27,7 +27,7 @@
     const app = document.getElementById("app");
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
-    const procedures = [
+    const defaultProcedures = [
   {
     id: "centrifuge-pm",
     name: "Centrifuge PM",
@@ -46,7 +46,7 @@
 
     function findProcedure(asset) {
       const desc = asset.description.toUpperCase();
-      return procedures.find(p => p.match.some(m => desc.includes(m)));
+      return procs.find(p => p.match.some(m => desc.includes(m)));
     }
 
     // ---------- Database ----------
@@ -54,6 +54,7 @@
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
         if (oldVersion < 2) db.createObjectStore("records", { autoIncrement: true });
+        if (oldVersion < 3) db.createObjectStore("procedures", { keyPath: "id" });
       }
     });
 
@@ -210,6 +211,62 @@
   };
 }
 
+    function showProcEditor(proc) {
+      const p = structuredClone(proc);
+
+      function draw() {
+        app.innerHTML = `
+          <button id="cancel">← Cancel</button>
+          <input id="name" value="${p.name}">
+          <select id="interval">
+            ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
+          </select>
+          <input id="match" value="${p.match.join(", ")}" placeholder="Matches descriptions containing...">
+          <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template">
+          ${p.steps.map((s, i) => `
+            <div class="stepRow">
+              <input data-i="${i}" data-f="label" value="${s.label}">
+              <select data-i="${i}" data-f="kind">
+                ${["check", "number", "text"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
+              </select>
+              <label><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> req</label>
+              <button data-up="${i}">↑</button><button data-del="${i}">✕</button>
+            </div>`).join("")}
+          <button id="addStep">+ Add step</button>
+          <button id="save">Save</button>`;
+        // wire handlers (below)
+
+        app.querySelectorAll("[data-f]").forEach(el => {
+        el.onchange = () => {
+          const s = p.steps[el.dataset.i];
+          s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+        };
+      });
+
+      document.getElementById("addStep").onclick = () => {
+        p.steps.push({ key: "", label: "New step", kind: "check", required: false });
+        draw();
+      };
+      // data-del: p.steps.splice(i, 1); draw()
+      // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
+
+      document.getElementById("save").onclick = async () => {
+      p.name = document.getElementById("name").value.trim();
+      p.intervalMonths = Number(document.getElementById("interval").value);
+      p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
+      p.exportTemplate = document.getElementById("tmpl").value;
+      p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
+      p.version++;
+
+      await (await dbPromise).put("procedures", p);
+      await loadProcs();
+      showProcList();
+    };
+        
+      }
+      draw();
+    }
+
     // ---------- Boot ----------
     async function boot() {
       try {
@@ -219,6 +276,17 @@
       } catch (err) {
         app.innerHTML = "<pre>" + err + "</pre>";
       }
+
+      let procs = [];
+
+      async function loadProcs() {
+        const db = await dbPromise;
+        if (await db.count("procedures") === 0) {
+          for (const p of defaultProcedures) await db.put("procedures", p);
+        }
+        procs = await db.getAll("procedures");
+      }
+      
     }
 
     boot();
