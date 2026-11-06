@@ -26,9 +26,34 @@
   <script>
     const app = document.getElementById("app");
 
+    const procedures = [
+  {
+    id: "centrifuge-pm",
+    name: "Centrifuge PM",
+    version: 1,
+    intervalMonths: 12,
+    match: ["CENTRIFUGE"],
+    steps: [
+      { label: "Visual inspection, no cracks or damage", kind: "check", required: true },
+      { label: "Set speed (RPM)",    kind: "number", required: true },
+      { label: "Actual speed (RPM)", kind: "number", required: true },
+      { label: "Timer accurate",     kind: "check",  required: true },
+      { label: "Notes",              kind: "text" }
+    ]
+  }
+];
+
+    function findProcedure(asset) {
+      const desc = asset.description.toUpperCase();
+      return procedures.find(p => p.match.some(m => desc.includes(m)));
+    }
+
     // ---------- Database ----------
-    const dbPromise = idb.openDB("pmpal", 1, {
-      upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
+    const dbPromise = idb.openDB("pmpal", 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
+        if (oldVersion < 2) db.createObjectStore("records", { autoIncrement: true });
+      }
     });
 
     // ---------- CSV parsing ----------
@@ -139,9 +164,44 @@
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("start").onclick = () => {
-        // later: pick the procedure from asset.description and run it
-        alert("PM runner goes here");
+        const proc = findProcedure(asset);
+        if (!proc) { alert("No PM procedure for this equipment yet"); return; }
+        runProcedure(asset, proc);
       };
+    }
+
+    function runProcedure(asset, proc) {
+      let i = 0;
+      const values = {};
+
+      function render() {
+        const s = proc.steps[i];
+        const input =
+          s.kind === "check"  ? `<input id="val" type="checkbox">` :
+          s.kind === "number" ? `<input id="val" type="number" inputmode="decimal">` :
+                            `<input id="val" type="text">`;
+
+        app.innerHTML = `
+          <p>Step ${i + 1} of ${proc.steps.length}</p>
+          <h2>${s.label}</h2>
+          ${input}
+          <button id="next">${i === proc.steps.length - 1 ? "Finish" : "Next"}</button>`;
+
+        document.getElementById("next").onclick = () => {
+          const el = document.getElementById("val");
+          const v = s.kind === "check" ? el.checked : el.value.trim();
+          if (s.required && (v === "" || v === false)) { alert("Required"); return; }
+          values[s.label] = v;
+          i++;
+          i < proc.steps.length ? render() : finish();
+        };
+      }
+
+      function finish() {
+        // save the record here (step 4)
+      }
+
+      render();
     }
 
     // ---------- Boot ----------
