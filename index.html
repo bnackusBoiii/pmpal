@@ -76,21 +76,11 @@
         <h1>PM-pal</h1>
         <input id="search" placeholder="ID, description, or location"
                autocapitalize="characters" autocorrect="off" spellcheck="false">
-        <div id="results"></div>
         <button id="scan">Scan</button>
-        <div id="reader"></div>`;
+        <div id="reader"></div>
+        <div id="results"></div>`;
 
       all = await (await dbPromise).getAll("assets");
-
-      document.getElementById("search").oninput = e => {
-        const q = e.target.value.trim().toUpperCase();
-        if (!q) return;
-        const hits = all
-          .filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q))
-          .slice(0, 20);
-        document.getElementById("results").innerHTML =
-          hits.map(a => `<div>${a.id}: ${a.description} (${a.location})</div>`).join("");
-      };
 
       function runSearch(q) {
         q = q.trim().toUpperCase();
@@ -103,6 +93,19 @@
       }
 
       document.getElementById("search").oninput = e => runSearch(e.target.value);
+
+      document.getElementById("scan").onclick = async () => {
+        const scanner = new Html5Qrcode("reader");
+        await scanner.start(
+          { facingMode: "environment" },          // rear camera
+          { fps: 10 },
+          async text => {
+            await scanner.stop();                 // close the camera
+            document.getElementById("search").value = text;
+            runSearch(text);                      // same function your typing uses
+          }
+        );
+      };
     }
 
     // ---------- Boot ----------
