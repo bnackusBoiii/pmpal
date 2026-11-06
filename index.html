@@ -17,7 +17,13 @@ function showImportScreen() {
   document.body.innerHTML = `
     <h1>Import equipment list</h1>
     <input type="file" accept=".json,.csv" id="import">`;
-  
+
+  document.getElementById("import").onchange = async e => {
+    const text = await e.target.files[0].text();
+    localStorage.setItem("assets", JSON.stringify(JSON.parse(text)));
+    boot();
+  };
+}
   // 1. Open the DB once, at the top
   const dbPromise = idb.openDB("pmpal", 1, {
     upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
