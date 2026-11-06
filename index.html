@@ -49,6 +49,16 @@
       return procs.find(p => p.match.some(m => desc.includes(m)));
     }
 
+    let procs = [];
+
+    async function loadProcs() {
+      const db = await dbPromise;
+      if (await db.count("procedures") === 0) {
+        for (const p of defaultProcedures) await db.put("procedures", p);
+      }
+      procs = await db.getAll("procedures");
+    }
+
     // ---------- Database ----------
     const dbPromise = idb.openDB("pmpal", 3, {
       upgrade(db, oldVersion) {
@@ -276,11 +286,7 @@
         if (await db.count("assets") === 0) showImportScreen();
         else showHomeScreen();
 
-        if (await db.count("procedures") === 0) {
-          for (const p of defaultProcedures) await db.put("procedures", p);
-        }
-        
-        procs = await db.getAll("procedures")
+        await loadProcs()
         
       } catch (err) {
         app.innerHTML = "<pre>" + err + "</pre>";
