@@ -50,7 +50,7 @@
     }
 
     // ---------- Database ----------
-    const dbPromise = idb.openDB("pmpal", 2, {
+    const dbPromise = idb.openDB("pmpal", 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
         if (oldVersion < 2) db.createObjectStore("records", { autoIncrement: true });
