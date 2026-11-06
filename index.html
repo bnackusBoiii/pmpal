@@ -273,6 +273,9 @@
         };
       });
 
+      document.getElementById("cancel").onclick = () => {
+        showAssetScreen(asset);
+      };
       document.getElementById("addStep").onclick = () => {
         p.steps.push({ key: "", label: "New step", kind: "check", required: false });
         draw();
