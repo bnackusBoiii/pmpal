@@ -12,6 +12,36 @@
   <h1>PM-pal works</h1>
 
   <script>
+
+    function loadAssets() {
+  try {
+    return JSON.parse(localStorage.getItem("assets")) || [];
+  } catch {
+    return [];
+  }
+}
+
+function boot() {
+  const assets = loadAssets();
+  if (assets.length === 0) showImportScreen();
+  else showHomeScreen();
+}
+
+function showImportScreen() {
+  document.body.innerHTML = `
+    <h1>Import equipment list</h1>
+    <input type="file" accept=".json,.csv" id="import">`;
+
+  document.getElementById("import").onchange = async e => {
+    const text = await e.target.files[0].text();
+    localStorage.setItem("assets", JSON.stringify(JSON.parse(text)));
+    boot();
+  };
+}
+    
+boot();
+
+    
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
   </script>
 </body>
