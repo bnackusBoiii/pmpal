@@ -236,7 +236,9 @@
         name: "",
         version: 1,
         intervalMonths: 12,
-        match: asset.description,
+        match: asset.description
+          ? [asset.description.toUpperCase()]
+          : [],
         steps: []
       };
 
