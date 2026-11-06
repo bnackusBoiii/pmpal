@@ -51,7 +51,20 @@
     boot();
   };
 }
+function showHomeScreen() {
+  document.body.innerHTML = `
+    <h1>PM-pal</h1>
+    <input id="search" placeholder="Asset ID" inputmode="numeric">
+    <div id="result"></div>`;
 
+  document.getElementById("search").oninput = async e => {
+    const db = await dbPromise;
+    const asset = await db.get("assets", e.target.value.trim());
+    document.getElementById("result").textContent = asset
+      ? `${asset.description} (${asset.location})`
+      : "Not found";
+  };
+}
   boot();
 
     
