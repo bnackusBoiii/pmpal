@@ -9,65 +9,93 @@
   <meta name="theme-color" content="#1e6fd9">
 </head>
 <body>
-  <h1>PM-pal works</h1>
+  <div id="app"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
-<script>
-  // 1. Open the DB once, at the top
-  const dbPromise = idb.openDB("pmpal", 1, {
-    upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
-  });
+  <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
+  <script>
+    const app = document.getElementById("app");
 
-  // 2. Boot checks the DB instead of localStorage
-  async function boot() {
-  try {
-    const db = await dbPromise;
-    if (await db.count("assets") === 0) showImportScreen();
-    else showHomeScreen();
-  } catch (err) {
-    document.body.innerHTML = "<pre>" + err + "</pre>";
-  }
-}
+    // ---------- Database ----------
+    const dbPromise = idb.openDB("pmpal", 1, {
+      upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
+    });
 
-  // 3. The import handler parses the CSV and writes the rows
-  async function importFile(file) {
-    const text = await file.text();
-    const rows = /* the split/map parsing */;
-    const db = await dbPromise;
-    const tx = db.transaction("assets", "readwrite");
-    rows.forEach(r => tx.store.put(r));
-    await tx.done;
+    // ---------- CSV parsing ----------
+    function parseCSV(text) {
+      text = text.replace(/^\uFEFF/, "");
+      const rows = [];
+      let row = [], field = "", inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+          else if (c === '"') inQuotes = false;
+          else field += c;
+        } else if (c === '"') inQuotes = true;
+        else if (c === ",") { row.push(field); field = ""; }
+        else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+        else if (c !== "\r") field += c;
+      }
+      if (field || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    // ---------- Import ----------
+    async function importFile(file) {
+      app.innerHTML = "<p>Importing...</p>";
+      const text = await file.text();
+      const rows = parseCSV(text)
+        .slice(1) // skip header row
+        .map(([id, description, location]) => ({
+          id: (id || "").trim(),
+          description: (description || "").trim(),
+          location: (location || "").trim()
+        }))
+        .filter(r => r.id);
+
+      const db = await dbPromise;
+      const tx = db.transaction("assets", "readwrite");
+      rows.forEach(r => tx.store.put(r));
+      await tx.done;
+      boot();
+    }
+
+    // ---------- Screens ----------
+    function showImportScreen() {
+      app.innerHTML = `
+        <h1>Import equipment list</h1>
+        <input type="file" accept=".csv" id="import">`;
+      document.getElementById("import").onchange = e => importFile(e.target.files[0]);
+    }
+
+    function showHomeScreen() {
+      app.innerHTML = `
+        <h1>PM-pal</h1>
+        <input id="search" placeholder="Asset ID" inputmode="numeric">
+        <div id="result"></div>`;
+
+      document.getElementById("search").oninput = async e => {
+        const db = await dbPromise;
+        const asset = await db.get("assets", e.target.value.trim());
+        document.getElementById("result").textContent = asset
+          ? `${asset.description} (${asset.location})`
+          : "Not found";
+      };
+    }
+
+    // ---------- Boot ----------
+    async function boot() {
+      try {
+        const db = await dbPromise;
+        if (await db.count("assets") === 0) showImportScreen();
+        else showHomeScreen();
+      } catch (err) {
+        app.innerHTML = "<pre>" + err + "</pre>";
+      }
+    }
+
     boot();
-  }
 
-  function showImportScreen() {
-  document.body.innerHTML = `
-    <h1>Import equipment list</h1>
-    <input type="file" accept=".json,.csv" id="import">`;
-
-  document.getElementById("import").onchange = async e => {
-    const text = await e.target.files[0].text();
-    localStorage.setItem("assets", JSON.stringify(JSON.parse(text)));
-    boot();
-  };
-}
-function showHomeScreen() {
-  document.body.innerHTML = `
-    <h1>PM-pal</h1>
-    <input id="search" placeholder="Asset ID" inputmode="numeric">
-    <div id="result"></div>`;
-
-  document.getElementById("search").oninput = async e => {
-    const db = await dbPromise;
-    const asset = await db.get("assets", e.target.value.trim());
-    document.getElementById("result").textContent = asset
-      ? `${asset.description} (${asset.location})`
-      : "Not found";
-  };
-}
-  boot();
-
-    
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
   </script>
 </body>
