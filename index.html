@@ -198,7 +198,14 @@
       }
 
       function finish() {
-        // save the record here (step 4)
+        const db = await dbPromise;
+        await db.add("records", {
+        assetId: asset.id,
+        procedure: proc.id,
+        version: proc.version,
+        date: new Date().toISOString(),
+        values
+        });
       }
 
       render();
