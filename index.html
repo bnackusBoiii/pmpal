@@ -12,6 +12,7 @@
   <div id="app"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>
     const app = document.getElementById("app");
 
@@ -75,7 +76,9 @@
         <h1>PM-pal</h1>
         <input id="search" placeholder="ID, description, or location"
                autocapitalize="characters" autocorrect="off" spellcheck="false">
-        <div id="results"></div>`;
+        <div id="results"></div>`
+        <button id="scan">Scan</button>
+        <div id="reader"></div>;
 
       all = await (await dbPromise).getAll("assets");
 
@@ -87,6 +90,19 @@
           .slice(0, 20);
         document.getElementById("results").innerHTML =
           hits.map(a => `<div>${a.id}: ${a.description} (${a.location})</div>`).join("");
+      };
+
+      document.getElementById("scan").onclick = async () => {
+        const scanner = new Html5Qrcode("reader");
+        await scanner.start(
+          { facingMode: "environment" },          // rear camera
+          { fps: 10 },
+          async text => {
+            await scanner.stop();                 // close the camera
+            document.getElementById("search").value = text;
+            runSearch(text);                      // same function your typing uses
+          }
+        );
       };
     }
 
