@@ -233,7 +233,9 @@
     ? structuredClone(proc)
     : {
         id: crypto.randomUUID(),
-        name: "",
+        name: asset.description
+          ? asset.description.toLowerCase() + " Procedure"
+          : "New Precedure",
         version: 1,
         intervalMonths: 12,
         match: asset.description
