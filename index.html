@@ -11,35 +11,32 @@
 <body>
   <h1>PM-pal works</h1>
 
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
+<script>
+  // 1. Open the DB once, at the top
+  const dbPromise = idb.openDB("pmpal", 1, {
+    upgrade(db) { db.createObjectStore("assets", { keyPath: "id" }); }
+  });
 
-    function loadAssets() {
-  try {
-    return JSON.parse(localStorage.getItem("assets")) || [];
-  } catch {
-    return [];
+  // 2. Boot checks the DB instead of localStorage
+  async function boot() {
+    const db = await dbPromise;
+    if (await db.count("assets") === 0) showImportScreen();
+    else showHomeScreen();
   }
-}
 
-function boot() {
-  const assets = loadAssets();
-  if (assets.length === 0) showImportScreen();
-  else showHomeScreen();
-}
-
-function showImportScreen() {
-  document.body.innerHTML = `
-    <h1>Import equipment list</h1>
-    <input type="file" accept=".json,.csv" id="import">`;
-
-  document.getElementById("import").onchange = async e => {
-    const text = await e.target.files[0].text();
-    localStorage.setItem("assets", JSON.stringify(JSON.parse(text)));
+  // 3. The import handler parses the CSV and writes the rows
+  async function importFile(file) {
+    const text = await file.text();
+    const rows = /* the split/map parsing */;
+    const db = await dbPromise;
+    const tx = db.transaction("assets", "readwrite");
+    rows.forEach(r => tx.store.put(r));
+    await tx.done;
     boot();
-  };
-}
-    
-boot();
+  }
+
+  boot();
 
     
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
