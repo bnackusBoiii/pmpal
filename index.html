@@ -353,6 +353,14 @@
       }
     }
 
+    function formatRecord(template, rec) {
+      const data = { id: rec.assetId, date: rec.date.slice(0, 10), nextDue: rec.nextDue, ...rec.values };
+      return template.replace(/\{(\w+)\}/g, (_, k) => {
+        const v = data[k];
+        return v === true ? "Pass" : v === false ? "Fail" : (v ?? "");
+      });
+    }
+
     async function loadRecords() {
       const db = await dbPromise;
       const [keys, vals] = await Promise.all([db.getAllKeys("records"), db.getAll("records")]);
