@@ -353,6 +353,36 @@
       }
     }
 
+    async function loadRecords() {
+      const db = await dbPromise;
+      const [keys, vals] = await Promise.all([db.getAllKeys("records"), db.getAll("records")]);
+      return vals.map((r, i) => ({ ...r, key: keys[i] }))
+        .sort((a, b) => b.date.localeCompare(a.date));   // newest first
+    }
+
+    async function exportRecords(list) {
+      if (!list.length) { toast("Nothing to export", true); return; }
+
+      const lines = list.map(r => {
+        const proc = procs.find(p => p.id === r.procedure);
+        return formatRecord(proc?.exportTemplate || "{id} | {date}", r);
+      });
+
+      const file = new File([lines.join("\n")], `pm-export-${Date.now()}.txt`, { type: "text/plain" });
+
+      try {
+        await navigator.share({ files: [file] });
+        const db = await dbPromise;
+        for (const r of list) {
+          const { key, ...rec } = r;               // don't store the key inside the value
+          await db.put("records", { ...rec, exported: true }, key);
+        }
+        showRecordsScreen();
+      } catch (err) {
+        if (err.name !== "AbortError") toast("Export failed", true);
+      }
+    }
+
     function toast(msg, bad) {
       const t = document.createElement("div");
       t.className = "toast" + (bad ? " bad" : "");
@@ -560,6 +590,7 @@
             version: proc.version,
             date,
             nextDue: addMonths(date, proc.intervalMonths),
+            exported: false,
             values
           });
           toast("PM saved ✓");
@@ -688,6 +719,34 @@
 
       }
       draw();
+    }
+
+    async function showRecordsScreen() {
+      const recs = await loadRecords();
+      app.innerHTML = `
+    <button id="back">← Back</button>
+    <h2>Records</h2>
+    <button id="exportNew">Export new (${recs.filter(r => !r.exported).length})</button>
+    <button id="exportAll">Export all</button>
+    ${recs.map(r => `
+      <div class="card">
+        <div class="id">${esc(r.assetId)} ${r.exported ? "✓" : ""}</div>
+        <div class="desc">${esc(r.date.slice(0, 10))} · due ${esc(r.nextDue)}</div>
+        <button data-edit="${r.key}">Edit</button>
+        <button class="danger" data-del="${r.key}">Delete</button>
+      </div>`).join("")}`;
+
+      document.getElementById("back").onclick = showHomeScreen;
+      document.getElementById("exportNew").onclick = () => exportRecords(recs.filter(r => !r.exported));
+      document.getElementById("exportAll").onclick = () => exportRecords(recs);
+
+      app.onclick = async e => {
+        const b = e.target.closest("button");
+        if (!b || b.dataset.del === undefined) return;
+        if (!confirm("Delete this record?")) return;
+        await (await dbPromise).delete("records", +b.dataset.del);
+        showRecordsScreen();
+      };
     }
 
     // ---------- Boot ----------
