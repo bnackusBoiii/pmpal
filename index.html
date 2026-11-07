@@ -333,6 +333,12 @@
       setTimeout(() => t.remove(), 2200);
     }
 
+    function addMonths(iso, months) {
+      const d = new Date(iso);
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().slice(0, 10);
+    }
+
     function findProcedure(asset) {
       const desc = asset.description.toUpperCase();
       return procs.find(p => p.match.some(m => desc.includes(m)));
