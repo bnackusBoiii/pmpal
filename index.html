@@ -186,6 +186,27 @@
       font-weight: 700;
       z-index: 10;
     }
+
+    textarea.lbl {
+      grid-area: lbl;
+      width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      font-size: 16px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      resize: vertical;
+    }
+
+    .instruction {
+      white-space: pre-wrap;
+      background: #fff8e1;
+      border-left: 4px solid #f5b800;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+    }
   </style>
 
 </head>
@@ -197,6 +218,8 @@
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>
     const app = document.getElementById("app");
+
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
     const defaultProcedures = [
@@ -370,12 +393,15 @@
 
     function runProcedure(asset, proc) {
       const fields = proc.steps.map((s, i) => {
+        if (s.kind === "instruction") {
+          return `<div class="instruction">${esc(s.label)}</div>`;
+        }
         const input =
           s.kind === "check" ? `<input type="checkbox" id="f${i}">` :
             s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
               `<input type="text" id="f${i}">`;
         return `<label class="step">
-            <span>${s.label}${s.required ? " *" : ""}</span>
+            <span>${esc(s.label)}${s.required ? " *" : ""}</span>
             ${input}
             </label>`;
       }).join("");
@@ -394,12 +420,13 @@
         let missing = false;
 
         proc.steps.forEach((s, i) => {
+          if (s.kind === "instruction") return;
           const el = document.getElementById("f" + i);
           const v = s.kind === "check" ? el.checked : el.value.trim();
           const empty = v === "" || (s.kind === "check" && v === false);
           el.closest(".step").classList.toggle("missing", s.required && empty);
           if (s.required && empty) missing = true;
-          values[s.label] = v;
+          values[esc(s.label)] = v;
         });
 
         if (missing) return;
@@ -449,9 +476,11 @@
           <label class="field">Export template <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template"></label>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
-              <input class="lbl" data-i="${i}" data-f="label" value="${s.label}">
+              ${s.kind === "instruction"
+            ? `<textarea class="lbl" rows="5" data-i="${i}" data-f="label">${esc(s.label)}</textarea>`
+            : `<input class="lbl" data-i="${i}" data-f="label" value="${esc(s.label)}">`}
               <select data-i="${i}" data-f="kind">
-                ${["check", "number", "text"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
+                ${["check", "number", "text", "instruction"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
               </select>
               <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
               <div class="btns">
@@ -468,6 +497,7 @@
           el.onchange = () => {
             const s = p.steps[el.dataset.i];
             s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+            if (el.dataset.f === "kind") { syncTop(); draw(); }
           };
         });
 
@@ -501,7 +531,7 @@
           p.intervalMonths = Number(document.getElementById("interval").value);
           p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
           p.exportTemplate = document.getElementById("tmpl").value;
-          p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
+          p.steps.forEach(s => { if (!s.key) s.key = esc(s.label).toLowerCase().replace(/\W+/g, "_"); });
           p.version++;
 
           try {
