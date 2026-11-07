@@ -701,7 +701,7 @@
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
-          <label class="field">Precedure Name <input id="name" value="${esc(p.name)}"> </label>
+          <label class="field">Procedure Name <input id="name" value="${esc(p.name)}"> </label>
           <label class="field">Repeats Every <select id="interval">
             ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
           </select></label>
