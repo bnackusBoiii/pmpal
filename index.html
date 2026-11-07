@@ -311,6 +311,20 @@
       font-weight: 700;
       background: #1a7f37;
     }
+
+    .assetHead {
+      background: #374151 center / cover;
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px 16px;
+      margin: 8px 0;
+    }
+
+    .assetHead h1,
+    .assetHead p {
+      margin: 2px 0;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+    }
   </style>
 
 </head>
@@ -369,6 +383,28 @@
         await stopScan();
         toast("Camera unavailable", true);
       }
+    }
+
+    async function patchAssetData(id, patch) {
+      const db = await dbPromise;
+      const prev = (await db.get("assetData", id)) || { id };
+      await db.put("assetData", { ...prev, ...patch, updated: new Date().toISOString() });
+    }
+
+    function shrinkPhoto(file, maxW = 320) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxW / img.width);
+          const c = document.createElement("canvas");
+          c.width = img.width * scale;
+          c.height = img.height * scale;
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(img.src);
+          resolve(c.toDataURL("image/jpeg", 0.5));
+        };
+        img.src = URL.createObjectURL(file);
+      });
     }
 
     async function loadDue() {
@@ -450,12 +486,13 @@
     }
 
     // ---------- Database ----------
-    const dbPromise = idb.openDB("pmpal", 4, {
+    const dbPromise = idb.openDB("pmpal", 5, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
         if (oldVersion < 2) db.createObjectStore("records", { autoIncrement: true });
         if (oldVersion < 3) db.createObjectStore("procedures", { keyPath: "id" });
         if (oldVersion < 4) db.createObjectStore("assetData", { keyPath: "id" });
+        if (oldVersion < 5) db.createObjectStore("photos");
       }
     });
 
@@ -510,66 +547,31 @@
     let all = [];
     let dueIds = new Set();
 
-    async function showHomeScreen() {
-
-
+    async function showAssetScreen(asset) {
+      stopScan();
+      const photo = await (await dbPromise).get("photos", asset.id);
+      const bg = photo
+        ? `style="background-image: linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url('${photo}')"`
+        : "";
 
       app.innerHTML = `
-        <h1>PM-pal</h1>
-        <button id="records">Records</button>
-        <input id="search" placeholder="ID, description, or location"
-               autocapitalize="characters" autocorrect="off" spellcheck="false">
-        <button id="scan">Scan</button>
-        <div id="reader"></div>
-        <div id="results"></div>`;
+    <button id="back">← Back</button>
+    <div class="assetHead" ${bg}>
+      <h1>${esc(asset.id)}</h1>
+      <p>${esc(asset.description)}</p>
+      <p>${esc(asset.location)}</p>
+    </div>
+    <label class="fileBtn">📷 ${photo ? "Retake photo" : "Add photo"}
+      <input type="file" accept="image/*" capture="environment" id="photo" hidden>
+    </label>
+    <button id="start">Start PM</button>`;
 
-      all = await (await dbPromise).getAll("assets");
-      await loadDue();
-      runSearch("");
-
-      function runSearch(q) {
-        q = q.trim().toUpperCase();
-        const hits = q
-          ? all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20)
-          : all.filter(a => dueIds.has(a.id));
-
-        document.getElementById("results").innerHTML =
-          (!q && hits.length ? `<h3>Due this month</h3>` : "") +
-          hits.map(a => `
-      <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
-        <div class="id">${esc(a.id)}</div>
-        <div class="desc">${esc(a.description)}</div>
-        <div class="loc">${esc(a.location)}</div>
-      </div>`).join("");
-      }
-
-      document.getElementById("search").oninput = e => runSearch(e.target.value);
-
-      document.getElementById("scan").onclick = () => scanner ? stopScan() : startScan();
-      document.getElementById("search").onfocus = stopScan;
-
-      document.getElementById("results").onclick = e => {
-        const card = e.target.closest(".card");
-        if (!card) return;
-        const asset = all.find(a => a.id === card.dataset.id);
+      document.getElementById("photo").onchange = async e => {
+        if (!e.target.files[0]) return;
+        const dataUrl = await shrinkPhoto(e.target.files[0]);
+        await (await dbPromise).put("photos", dataUrl, asset.id);
         showAssetScreen(asset);
       };
-
-      document.getElementById("records").onclick = e => {
-        showRecordsScreen();
-      };
-    }
-
-    function showAssetScreen(asset) {
-      stopScan();
-      app.innerHTML = `
-        <button id="back">← Back</button>
-        <h1>${asset.id}</h1>
-        <p>${asset.description}</p>
-        <p>${asset.location}</p>
-        <button id="editPM">Edit PM</button>
-        <button id="start">Start PM</button>`;
-
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("start").onclick = () => {
@@ -581,6 +583,7 @@
         const proc = findProcedure(asset);
         showProcEditor(proc, asset);
       };
+      // back + start handlers as before
     }
 
     async function runProcedure(asset, proc) {
@@ -655,9 +658,8 @@
           const linked = {};
           proc.steps.forEach(s => { if (s.perAsset && values[s.key] !== "") linked[s.key] = values[s.key]; });
 
-          const db = await dbPromise;
-          const prev = (await db.get("assetData", asset.id))?.values || {};
-          await db.put("assetData", { id: asset.id, values: { ...prev, ...linked } });
+          const prev = (await (await dbPromise).get("assetData", asset.id))?.values || {};
+          await patchAssetData(asset.id, { values: { ...prev, ...linked } });
 
           toast("PM saved ✓");
           showAssetScreen(asset);
