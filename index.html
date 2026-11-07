@@ -205,6 +205,10 @@
       z-index: 10;
     }
 
+    .toast.bad {
+      background: #c62828;
+    }
+
     textarea.lbl {
       grid-area: lbl;
       width: 100%;
@@ -321,12 +325,12 @@
       }
     ];
 
-    function toast(msg) {
+    function toast(msg, bad) {
       const t = document.createElement("div");
-      t.className = "toast";
+      t.className = "toast" + (bad ? " bad" : "");
       t.textContent = msg;
       document.body.appendChild(t);
-      setTimeout(() => t.remove(), 2000);
+      setTimeout(() => t.remove(), 2200);
     }
 
     function findProcedure(asset) {
@@ -504,20 +508,40 @@
 
       document.getElementById("finish").onclick = async () => {
         const values = {};
-        let missing = false;
+        let firstMissing = null;
 
         proc.steps.forEach((s, i) => {
           if (s.kind === "instruction") return;
           const el = document.getElementById("f" + i);
           const v = s.kind === "check" ? el.checked : el.value.trim();
-          const empty = v === "" || (s.kind === "check" && v === false);
-          el.closest(".step").classList.toggle("missing", s.required && empty);
-          if (s.required && empty) missing = true;
-          values[esc(s.label)] = v;
+          const empty = v === "" || v === false;
+          const card = el.closest(".step");
+          card.classList.toggle("missing", s.required && empty);
+          if (s.required && empty && !firstMissing) firstMissing = card;
+          values[s.key || s.label] = v;
         });
 
-        if (missing) return;
-        // save the record here
+        if (firstMissing) {
+          toast("Missing required steps", true);
+          firstMissing.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+
+        try {
+          const date = new Date().toISOString();
+          await (await dbPromise).add("records", {
+            assetId: asset.id,
+            procedure: proc.id,
+            version: proc.version,
+            date,
+            nextDue: addMonths(date, proc.intervalMonths),
+            values
+          });
+          toast("PM saved ✓");
+          showAssetScreen(asset);
+        } catch (err) {
+          toast("Save failed", true);
+        }
       };
     }
 
