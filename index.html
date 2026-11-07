@@ -434,6 +434,76 @@
       }
     }
 
+    async function shareOrDownload(file) {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] });
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(file);
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+    }
+
+    async function exportStatic() {
+      try {
+        const db = await dbPromise;
+        const bundle = {
+          kind: "pmpal-static",
+          exportedAt: new Date().toISOString(),
+          procedures: await db.getAll("procedures"),
+          assetData: await db.getAll("assetData")
+        };
+        const file = new File([JSON.stringify(bundle, null, 2)], "pmpal-static.json", { type: "application/json" });
+        await shareOrDownload(file);
+      } catch (err) {
+        if (err.name !== "AbortError") alert("Export failed: " + err);
+      }
+    }
+
+    async function reimportAssets(file) {
+      try {
+        const rows = parseAssetCSV(await file.text());
+        if (!rows.length) throw new Error("No rows found");
+
+        const db = await dbPromise;
+        const tx = db.transaction("assets", "readwrite");
+        await tx.store.clear();
+        rows.forEach(r => tx.store.put(r));
+        await tx.done;
+
+        toast(`Imported ${rows.length} assets`);
+        showHomeScreen();
+      } catch (err) {
+        alert("Import failed, nothing changed: " + err);
+      }
+    }
+
+    async function importStatic(file) {
+      try {
+        const bundle = JSON.parse(await file.text());
+        if (bundle.kind !== "pmpal-static") throw new Error("Not a PM-pal static data file");
+
+        const db = await dbPromise;
+        let nProc = 0, nData = 0;
+
+        for (const p of bundle.procedures || []) {
+          const mine = await db.get("procedures", p.id);
+          if (!mine || p.version > mine.version) { await db.put("procedures", p); nProc++; }
+        }
+        for (const a of bundle.assetData || []) {
+          const mine = await db.get("assetData", a.id);
+          if (!mine || (a.updated || "") > (mine.updated || "")) { await db.put("assetData", a); nData++; }
+        }
+
+        await loadProcs();
+        toast(`Imported ${nProc} procedures, ${nData} asset entries`);
+      } catch (err) {
+        alert("Import failed: " + err);
+      }
+    }
+
     async function patchAssetData(id, patch) {
       const db = await dbPromise;
       const prev = (await db.get("assetData", id)) || { id };
@@ -602,6 +672,7 @@
 
       app.innerHTML = `
         <h1>PM-pal</h1>
+        <button id="gear" class="gear">⚙</button>
         <button id="records">Records</button>
         <input id="search" placeholder="ID, description, or location"
                autocapitalize="characters" autocorrect="off" spellcheck="false">
@@ -644,6 +715,8 @@
       document.getElementById("records").onclick = e => {
         showRecordsScreen();
       };
+
+      document.getElementById("gear").onclick = () => { stopScan(); showToolsScreen(); };
     }
 
     async function showAssetScreen(asset) {
@@ -955,6 +1028,28 @@
         if (!confirm("Delete this record?")) return;
         await (await dbPromise).delete("records", +b.dataset.del);
         showRecordsScreen();
+      };
+    }
+
+    function showToolsScreen() {
+      stopScan()
+
+
+      app.innerHTML = `
+    <button id="back">← Back</button>
+    <h2>Tools</h2>
+    <button id="expStatic">Export static data</button>
+    <label class="fileBtn">Import static data <input type="file" accept=".json" id="impStatic" hidden></label>
+    <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>`;
+
+      document.getElementById("back").onclick = showHomeScreen;
+      document.getElementById("expStatic").onclick = exportStatic;
+
+      document.getElementById("impStatic").onchange = e => importStatic(e.target.files[0]);
+
+      document.getElementById("impAssets").onchange = e => {
+        if (!confirm("Replace this phone's asset list?")) { e.target.value = ""; return; }
+        reimportAssets(e.target.files[0]);
       };
     }
 
