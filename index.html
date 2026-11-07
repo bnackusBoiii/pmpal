@@ -480,6 +480,7 @@
     }
 
     function showAssetScreen(asset) {
+      stopScan();
       app.innerHTML = `
         <button id="back">← Back</button>
         <h1>${asset.id}</h1>
