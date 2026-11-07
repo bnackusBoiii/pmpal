@@ -399,11 +399,12 @@
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
-          <label class="field">Name <input id="name" value="..."></label>
-          <input id="name" value="${p.name}">
-          <label class="field">Repeats every <select id="interval">...</select></label>
-          <label class="field">Matches descriptions containing <input id="match" value="..."></label>
-          <label class="field">Export template <input id="tmpl" value="..."></label>
+          <label class="field">Export template <input id="name" value="${p.name}"> </label>
+          <label class="field">Repeats every <select id="interval">
+            ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
+          </select></label>
+          <label class="field">Matches descriptions containing <input id="match" value="${p.match.join(", ")}" placeholder="Matches descriptions containing..."></label>
+          <label class="field">Export template <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template"></label>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
   <input class="lbl" data-i="${i}" data-f="label" value="${s.label}">
