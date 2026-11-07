@@ -325,6 +325,34 @@
       }
     ];
 
+    let scanner = null;
+
+    async function stopScan() {
+      if (!scanner) return;
+      try { await scanner.stop(); } catch { }
+      scanner = null;
+      document.getElementById("scan").textContent = "Scan";
+    }
+
+    async function startScan() {
+      scanner = new Html5Qrcode("reader");
+      document.getElementById("scan").textContent = "Cancel scan";
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10 },
+          async text => {
+            await stopScan();
+            document.getElementById("search").value = text;
+            runSearch(text);
+          }
+        );
+      } catch (err) {
+        await stopScan();
+        toast("Camera unavailable", true);
+      }
+    }
+
     function toast(msg, bad) {
       const t = document.createElement("div");
       t.className = "toast" + (bad ? " bad" : "");
@@ -440,18 +468,8 @@
 
       document.getElementById("search").oninput = e => runSearch(e.target.value);
 
-      document.getElementById("scan").onclick = async () => {
-        const scanner = new Html5Qrcode("reader");
-        await scanner.start(
-          { facingMode: "environment" },          // rear camera
-          { fps: 10 },
-          async text => {
-            await scanner.stop();                 // close the camera
-            document.getElementById("search").value = text;
-            runSearch(text);                      // same function your typing uses
-          }
-        );
-      };
+      document.getElementById("scan").onclick = () => scanner ? stopScan() : startScan();
+      document.getElementById("search").onfocus = stopScan;
 
       document.getElementById("results").onclick = e => {
         const card = e.target.closest(".card");
