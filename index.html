@@ -424,6 +424,20 @@
           steps: []
         };
 
+      function syncTop() {
+        p.name = document.getElementById("name").value;
+        p.intervalMonths = Number(document.getElementById("interval").value);
+        p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
+        p.exportTemplate = document.getElementById("tmpl").value;
+      }
+
+      function move(from, to) {
+        if (to < 0 || to >= p.steps.length) return;
+        const [s] = p.steps.splice(from, 1);   // pull it out
+        p.steps.splice(to, 0, s);              // drop it in
+        draw();
+      }
+
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
@@ -457,12 +471,7 @@
           };
         });
 
-        function move(from, to) {
-          if (to < 0 || to >= p.steps.length) return;
-          const [s] = p.steps.splice(from, 1);   // pull it out
-          p.steps.splice(to, 0, s);              // drop it in
-          draw();
-        }
+
 
         app.querySelectorAll("[data-up]").forEach(b => {
           b.onclick = () => { syncTop(); move(+b.dataset.up, +b.dataset.up - 1); };
@@ -499,7 +508,7 @@
             await (await dbPromise).put("procedures", p);
             await loadProcs();
             toast("Saved ✓");
-            
+
             showAssetScreen(asset);
 
           } catch (err) {
@@ -507,8 +516,8 @@
             await loadProcs();
             showProcList();
           }
-          
-          
+
+
         };
 
       }
