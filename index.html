@@ -57,6 +57,11 @@
       margin-top: 8px;
     }
 
+    .card.due {
+      background: #fff4c2;
+      border-color: #f5b800;
+    }
+
     .id {
       font-weight: 700;
       font-size: 18px;
@@ -353,6 +358,17 @@
       }
     }
 
+    async function loadDue() {
+      const recs = await (await dbPromise).getAll("records");
+      const latest = {};
+      recs.forEach(r => {
+        if (!latest[r.assetId] || r.date > latest[r.assetId].date) latest[r.assetId] = r;
+      });
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      dueIds = new Set(Object.values(latest).filter(r => r.nextDue.slice(0, 7) === month).map(r => r.assetId));
+    }
+
     function formatRecord(template, rec) {
       const data = { id: rec.assetId, date: rec.date.slice(0, 10), nextDue: rec.nextDue, ...rec.values };
       return template.replace(/\{(\w+)\}/g, (_, k) => {
@@ -478,8 +494,12 @@
     }
 
     let all = [];
+    let dueIds = new Set();
 
     async function showHomeScreen() {
+
+
+
       app.innerHTML = `
         <h1>PM-pal</h1>
         <button id="records">Records</button>
@@ -490,19 +510,23 @@
         <div id="results"></div>`;
 
       all = await (await dbPromise).getAll("assets");
+      await loadDue();
+      runSearch("");
 
       function runSearch(q) {
         q = q.trim().toUpperCase();
-        if (!q) { document.getElementById("results").innerHTML = ""; return; }
-        const hits = all
-          .filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q))
-          .slice(0, 20);
-        document.getElementById("results").innerHTML = hits.map(a => `
-          <div class="card" data-id="${a.id}">
-          <div class="id">${a.id}</div>
-          <div class="desc">${a.description}</div>
-          <div class="loc">${a.location}</div>
-          </div>`).join("");
+        const hits = q
+          ? all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20)
+          : all.filter(a => dueIds.has(a.id));
+
+        document.getElementById("results").innerHTML =
+          (!q && hits.length ? `<h3>Due this month</h3>` : "") +
+          hits.map(a => `
+      <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
+        <div class="id">${esc(a.id)}</div>
+        <div class="desc">${esc(a.description)}</div>
+        <div class="loc">${esc(a.location)}</div>
+      </div>`).join("");
       }
 
       document.getElementById("search").oninput = e => runSearch(e.target.value);
