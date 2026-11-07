@@ -313,13 +313,38 @@
     }
 
     .assetHead {
+      position: relative;
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-start;
       background: #374151 center / cover;
+      border-radius: 12px;
+      margin: 8px 0;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .assetHead .info {
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       color: #fff;
       border-radius: 12px;
-      padding: 20px 16px;
-      margin: 8px 0;
-      position: relative;
-      padding-right: 64px;
+      padding: 8px 12px;
+      max-width: calc(100% - 56px);
+    }
+
+    .assetHead .info h1,
+    .assetHead .info p {
+      margin: 2px 0;
+    }
+
+    .assetHead .camBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
     }
 
     .assetHead h1,
@@ -625,7 +650,7 @@
       stopScan();
       const photo = await (await dbPromise).get("photos", asset.id);
       const bg = photo
-        ? `style="background-image: linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url('${photo}')"`
+        ? `style="background-image: url('${photo}')"`
         : "";
 
       app.innerHTML = `
@@ -634,9 +659,11 @@
       <label class="camBtn" title="${photo ? "Retake photo" : "Add photo"}">📷
         <input type="file" accept="image/*" capture="environment" id="photo" hidden>
       </label>
-      <h1>${esc(asset.id)}</h1>
-      <p>${esc(asset.description)}</p>
-      <p>${esc(asset.location)}</p>
+      <div class="info">
+        <h1>${esc(asset.id)}</h1>
+        <p>${esc(asset.description)}</p>
+        <p>${esc(asset.location)}</p>
+      </div>
     </div>
     <button id="start">Start PM</button>`;
 
