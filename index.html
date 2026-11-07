@@ -437,11 +437,12 @@
     }
 
     // ---------- Database ----------
-    const dbPromise = idb.openDB("pmpal", 3, {
+    const dbPromise = idb.openDB("pmpal", 4, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
         if (oldVersion < 2) db.createObjectStore("records", { autoIncrement: true });
         if (oldVersion < 3) db.createObjectStore("procedures", { keyPath: "id" });
+        if (oldVersion < 4) db.createObjectStore("assetData", { keyPath: "id" });
       }
     });
 
@@ -569,16 +570,23 @@
       };
     }
 
-    function runProcedure(asset, proc) {
+    async function runProcedure(asset, proc) {
+
+      const saved = (await (await dbPromise).get("assetData", asset.id))?.values || {};
+
       const fields = proc.steps.map((s, i) => {
         if (s.kind === "instruction") {
           return `<div class="instruction">${esc(s.label)}</div>`;
         }
 
+        const pre = s.perAsset && saved[s.key] !== undefined ? saved[s.key] : "";
+
         const input =
           s.kind === "check" ? `<input type="checkbox" id="f${i}">` :
-            s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
-              `<input type="text" id="f${i}">`;
+            s.kind === "number" ? `<input type="number" inputmode="decimal" value="${esc(pre)} id="f${i}">` :
+              `<input type="text" value="${esc(pre)} id="f${i}">`;
+
+
 
         return `<label class="step ${s.kind}">
     <span class="stepLabel">${esc(s.label)}${s.required ? '<b class="star"> *</b>' : ""}</span>
@@ -630,6 +638,14 @@
             exported: false,
             values
           });
+
+          const linked = {};
+          proc.steps.forEach(s => { if (s.perAsset && values[s.key] !== "") linked[s.key] = values[s.key]; });
+
+          const db = await dbPromise;
+          const prev = (await db.get("assetData", asset.id))?.values || {};
+          await db.put("assetData", { id: asset.id, values: { ...prev, ...linked } });
+
           toast("PM saved ✓");
           showAssetScreen(asset);
         } catch (err) {
@@ -687,6 +703,7 @@
                 ${["check", "number", "text", "instruction"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
               </select>
               <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
+              <label class="req"><input type="checkbox" data-i="${i}" data-f="perAsset" ${s.perAsset ? "checked" : ""}> Remember per asset</label>
               <div class="btns">
                 <button data-up="${i}">↑</button>
                 <button data-down="${i}">↓</button>
