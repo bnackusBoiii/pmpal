@@ -173,6 +173,19 @@
       background: #6b7280;
       margin-bottom: 8px;
     }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      background: #1a7f37;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      z-index: 10;
+    }
   </style>
 
 </head>
@@ -202,6 +215,14 @@
         ]
       }
     ];
+
+    function toast(msg) {
+      const t = document.createElement("div");
+      t.className = "toast";
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2000);
+    }
 
     function findProcedure(asset) {
       const desc = asset.description.toUpperCase();
@@ -421,6 +442,7 @@
               <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
               <div class="btns">
                 <button data-up="${i}">↑</button>
+                <button data-down="${i}">↓</button>
                 <button class="danger" data-del="${i}">✕</button>
               </div>
             </div>`).join("")}
@@ -434,6 +456,26 @@
             s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
           };
         });
+
+        function move(from, to) {
+          if (to < 0 || to >= p.steps.length) return;
+          const [s] = p.steps.splice(from, 1);   // pull it out
+          p.steps.splice(to, 0, s);              // drop it in
+          draw();
+        }
+
+        app.querySelectorAll("[data-up]").forEach(b => {
+          b.onclick = () => { syncTop(); move(+b.dataset.up, +b.dataset.up - 1); };
+        });
+
+        app.querySelectorAll("[data-down]").forEach(b => {
+          b.onclick = () => { syncTop(); move(+b.dataset.down, +b.dataset.down + 1); };
+        });
+
+        app.querySelectorAll("[data-del]").forEach(b => {
+          b.onclick = () => { syncTop(); p.steps.splice(+b.dataset.del, 1); draw(); };
+        });
+
 
         document.getElementById("cancel").onclick = () => {
           showAssetScreen(asset);
@@ -453,9 +495,20 @@
           p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
           p.version++;
 
-          await (await dbPromise).put("procedures", p);
-          await loadProcs();
-          showProcList();
+          try {
+            await (await dbPromise).put("procedures", p);
+            await loadProcs();
+            toast("Saved ✓");
+            
+            showAssetScreen(asset);
+
+          } catch (err) {
+            toast("Save failed");
+            await loadProcs();
+            showProcList();
+          }
+          
+          
         };
 
       }
