@@ -32,6 +32,24 @@
       margin-bottom: 8px;
     }
 
+    .runHead {
+      margin: 8px 0 12px;
+    }
+
+    .runHead h2 {
+      margin: 0 0 4px;
+    }
+
+    .assetLine {
+      font-size: 16px;
+    }
+
+    .assetLoc {
+      color: #666;
+      font-size: 14px;
+      margin-top: 2px;
+    }
+
     .card {
       border: 1px solid #ddd;
       border-radius: 10px;
@@ -206,6 +224,70 @@
       border-radius: 8px;
       padding: 12px;
       margin: 10px 0;
+    }
+
+    /* step cards */
+    .step {
+      display: block;
+      background: #f6f7f9;
+      border: 1px solid #e2e4e8;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+
+    .stepLabel {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .star {
+      color: #d33;
+    }
+
+    .step input[type=number],
+    .step input[type=text] {
+      width: 100%;
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    /* checkbox steps: label left, big box right, whole card is tappable */
+    .step.check {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .step.check .stepLabel {
+      margin: 0;
+    }
+
+    .step.check input {
+      width: 32px;
+      height: 32px;
+      flex: none;
+      margin: 0;
+    }
+
+    /* skipped required step */
+    .step.missing {
+      border-color: #d33;
+      background: #fdecec;
+    }
+
+    .step.missing .stepLabel {
+      color: #c00;
+    }
+
+    #finish {
+      width: 100%;
+      margin-top: 16px;
+      padding: 16px;
+      font-weight: 700;
+      background: #1a7f37;
     }
   </style>
 
@@ -396,22 +478,27 @@
         if (s.kind === "instruction") {
           return `<div class="instruction">${esc(s.label)}</div>`;
         }
+
         const input =
           s.kind === "check" ? `<input type="checkbox" id="f${i}">` :
             s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
               `<input type="text" id="f${i}">`;
-        return `<label class="step">
-            <span>${esc(s.label)}${s.required ? " *" : ""}</span>
-            ${input}
-            </label>`;
+
+        return `<label class="step ${s.kind}">
+    <span class="stepLabel">${esc(s.label)}${s.required ? '<b class="star"> *</b>' : ""}</span>
+    ${input}
+  </label>`;
       }).join("");
 
       app.innerHTML = `
-        <button id="back">← Back</button>
-        <h2>${proc.name}</h2>
-        <p>${asset.id}: ${asset.description}</p>
-        ${fields}
-        <button id="finish">Finish</button>`;
+  <button id="back">← Back</button>
+  <div class="runHead">
+    <h2>${esc(proc.name)}</h2>
+    <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
+    <div class="assetLoc">${esc(asset.location)}</div>
+  </div>
+  ${fields}
+  <button id="finish">Finish</button>`;
 
       document.getElementById("back").onclick = () => showAssetScreen(asset);
 
