@@ -547,6 +547,56 @@
     let all = [];
     let dueIds = new Set();
 
+    async function showHomeScreen() {
+
+
+
+      app.innerHTML = `
+        <h1>PM-pal</h1>
+        <button id="records">Records</button>
+        <input id="search" placeholder="ID, description, or location"
+               autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <button id="scan">Scan</button>
+        <div id="reader"></div>
+        <div id="results"></div>`;
+
+      all = await (await dbPromise).getAll("assets");
+      await loadDue();
+      runSearch("");
+
+      function runSearch(q) {
+        q = q.trim().toUpperCase();
+        const hits = q
+          ? all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20)
+          : all.filter(a => dueIds.has(a.id));
+
+        document.getElementById("results").innerHTML =
+          (!q && hits.length ? `<h3>Due this month</h3>` : "") +
+          hits.map(a => `
+      <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
+        <div class="id">${esc(a.id)}</div>
+        <div class="desc">${esc(a.description)}</div>
+        <div class="loc">${esc(a.location)}</div>
+      </div>`).join("");
+      }
+
+      document.getElementById("search").oninput = e => runSearch(e.target.value);
+
+      document.getElementById("scan").onclick = () => scanner ? stopScan() : startScan();
+      document.getElementById("search").onfocus = stopScan;
+
+      document.getElementById("results").onclick = e => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const asset = all.find(a => a.id === card.dataset.id);
+        showAssetScreen(asset);
+      };
+
+      document.getElementById("records").onclick = e => {
+        showRecordsScreen();
+      };
+    }
+
     async function showAssetScreen(asset) {
       stopScan();
       const photo = await (await dbPromise).get("photos", asset.id);
