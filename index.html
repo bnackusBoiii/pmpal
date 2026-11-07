@@ -318,12 +318,36 @@
       border-radius: 12px;
       padding: 20px 16px;
       margin: 8px 0;
+      position: relative;
+      padding-right: 64px;
     }
 
     .assetHead h1,
     .assetHead p {
       margin: 2px 0;
       text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+    }
+
+    .camBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .2);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, .35);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .camBtn:active {
+      background: rgba(255, 255, 255, .35);
     }
   </style>
 
@@ -607,13 +631,13 @@
       app.innerHTML = `
     <button id="back">← Back</button>
     <div class="assetHead" ${bg}>
+      <label class="camBtn" title="${photo ? "Retake photo" : "Add photo"}">📷
+        <input type="file" accept="image/*" capture="environment" id="photo" hidden>
+      </label>
       <h1>${esc(asset.id)}</h1>
       <p>${esc(asset.description)}</p>
       <p>${esc(asset.location)}</p>
     </div>
-    <label class="fileBtn">📷 ${photo ? "Retake photo" : "Add photo"}
-      <input type="file" accept="image/*" capture="environment" id="photo" hidden>
-    </label>
     <button id="start">Start PM</button>`;
 
       document.getElementById("photo").onchange = async e => {
