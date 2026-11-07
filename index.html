@@ -406,22 +406,24 @@
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
-          <label class="field">Export template <input id="name" value="${p.name}"> </label>
-          <label class="field">Repeats every <select id="interval">
+          <label class="field">Precedure Name <input id="name" value="${p.name}"> </label>
+          <label class="field">Repeats Every <select id="interval">
             ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
           </select></label>
           <label class="field">Matches descriptions containing <input id="match" value="${p.match.join(", ")}" placeholder="Matches descriptions containing..."></label>
           <label class="field">Export template <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template"></label>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
-  <input class="lbl" data-i="${i}" data-f="label" value="${s.label}">
-  <select data-i="${i}" data-f="kind">...</select>
-  <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
-  <div class="btns">
-    <button data-up="${i}">↑</button>
-    <button class="danger" data-del="${i}">✕</button>
-  </div>
-</div>`).join("")}
+              <input class="lbl" data-i="${i}" data-f="label" value="${s.label}">
+              <select data-i="${i}" data-f="kind">
+                ${["check", "number", "text"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
+              </select>
+              <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
+              <div class="btns">
+                <button data-up="${i}">↑</button>
+                <button class="danger" data-del="${i}">✕</button>
+              </div>
+            </div>`).join("")}
           <button id="addStep">+ Add step</button>
           <button id="save">Save</button>`;
         // wire handlers (below)
