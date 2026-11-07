@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,16 +9,167 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#1e6fd9">
 
-<style>
-  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
-  input, button { font-size: 18px; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
-  .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 8px; }
-  .id   { font-weight: 700; font-size: 18px; }
-  .desc { margin-top: 2px; }
-  .loc  { margin-top: 2px; color: #666; font-size: 14px; }
-</style>
-  
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 16px;
+    }
+
+    input,
+    button {
+      font-size: 18px;
+      padding: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 8px;
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .id {
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .desc {
+      margin-top: 2px;
+    }
+
+    .loc {
+      margin-top: 2px;
+      color: #666;
+      font-size: 14px;
+    }
+
+
+    /* shared */
+    button {
+      border: 0;
+      border-radius: 10px;
+      background: #1e6fd9;
+      color: #fff;
+      font-size: 16px;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    button:active {
+      opacity: .7;
+    }
+
+    select,
+    input[type=text],
+    input:not([type]) {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    /* top fields */
+    .field {
+      display: block;
+      margin: 12px 0 0;
+      font-size: 13px;
+      color: #555;
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select {
+      display: block;
+      margin-top: 4px;
+      font-weight: 400;
+      color: #000;
+    }
+
+    /* step cards */
+    .stepRow {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      grid-template-areas:
+        "lbl lbl lbl"
+        "kind req btns";
+      gap: 8px;
+      align-items: center;
+      background: #f6f7f9;
+      border: 1px solid #e2e4e8;
+      border-radius: 12px;
+      padding: 10px;
+      margin: 10px 0;
+    }
+
+    .stepRow .lbl {
+      grid-area: lbl;
+      margin: 0;
+    }
+
+    .stepRow select {
+      grid-area: kind;
+      font-size: 16px;
+      padding: 10px;
+      width: 100%;
+      margin: 0;
+    }
+
+    .stepRow .req {
+      grid-area: req;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+    }
+
+    .stepRow .req input {
+      width: 24px;
+      height: 24px;
+      margin: 0;
+    }
+
+    .stepRow .btns {
+      grid-area: btns;
+      display: flex;
+      gap: 6px;
+    }
+
+    .stepRow .btns button {
+      width: 44px;
+      padding: 10px 0;
+      background: #6b7280;
+    }
+
+    .stepRow .btns .danger {
+      background: #d33;
+    }
+
+    /* action buttons */
+    #addStep {
+      background: #e8f0fc;
+      color: #1e6fd9;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    #save {
+      width: 100%;
+      margin-top: 16px;
+      padding: 16px;
+      font-weight: 700;
+    }
+
+    #cancel {
+      background: #6b7280;
+      margin-bottom: 8px;
+    }
+  </style>
+
 </head>
+
 <body>
   <div id="app"></div>
 
@@ -28,21 +180,21 @@
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
     const defaultProcedures = [
-  {
-    id: "centrifuge-pm",
-    name: "Centrifuge PM",
-    version: 1,
-    intervalMonths: 12,
-    match: ["CENTRIFUGE"],
-    steps: [
-      { label: "Visual inspection, no cracks or damage", kind: "check", required: true },
-      { label: "Set speed (RPM)",    kind: "number", required: true },
-      { label: "Actual speed (RPM)", kind: "number", required: true },
-      { label: "Timer accurate",     kind: "check",  required: true },
-      { label: "Notes",              kind: "text" }
-    ]
-  }
-];
+      {
+        id: "centrifuge-pm",
+        name: "Centrifuge PM",
+        version: 1,
+        intervalMonths: 12,
+        match: ["CENTRIFUGE"],
+        steps: [
+          { label: "Visual inspection, no cracks or damage", kind: "check", required: true },
+          { label: "Set speed (RPM)", kind: "number", required: true },
+          { label: "Actual speed (RPM)", kind: "number", required: true },
+          { label: "Timer accurate", kind: "check", required: true },
+          { label: "Notes", kind: "text" }
+        ]
+      }
+    ];
 
     function findProcedure(asset) {
       const desc = asset.description.toUpperCase();
@@ -174,7 +326,7 @@
         <p>${asset.location}</p>
         <button id="editPM">Edit PM</button>
         <button id="start">Start PM</button>`;
-        
+
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("start").onclick = () => {
@@ -191,14 +343,14 @@
     function runProcedure(asset, proc) {
       const fields = proc.steps.map((s, i) => {
         const input =
-          s.kind === "check"  ? `<input type="checkbox" id="f${i}">` :
-          s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
-                            `<input type="text" id="f${i}">`;
-          return `<label class="step">
+          s.kind === "check" ? `<input type="checkbox" id="f${i}">` :
+            s.kind === "number" ? `<input type="number" inputmode="decimal" id="f${i}">` :
+              `<input type="text" id="f${i}">`;
+        return `<label class="step">
             <span>${s.label}${s.required ? " *" : ""}</span>
             ${input}
             </label>`;
-            }).join("");
+      }).join("");
 
       app.innerHTML = `
         <button id="back">← Back</button>
@@ -224,98 +376,98 @@
 
         if (missing) return;
         // save the record here
-  };
-}
+      };
+    }
 
     function showProcEditor(proc, asset) {
 
       const p = proc
-    ? structuredClone(proc)
-    : {
-        id: crypto.randomUUID(),
-        name: asset.description
-          ? asset.description.toLowerCase() + " Procedure"
-          : "New Precedure",
-        version: 1,
-        intervalMonths: 12,
-        match: asset.description
-          ? [asset.description.toUpperCase()]
-          : [],
-        steps: []
-      };
+        ? structuredClone(proc)
+        : {
+          id: crypto.randomUUID(),
+          name: asset.description
+            ? asset.description.toLowerCase() + " Procedure"
+            : "New Precedure",
+          version: 1,
+          intervalMonths: 12,
+          match: asset.description
+            ? [asset.description.toUpperCase()]
+            : [],
+          steps: []
+        };
 
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
+          <label class="field">Name <input id="name" value="..."></label>
           <input id="name" value="${p.name}">
-          <select id="interval">
-            ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
-          </select>
-          <input id="match" value="${p.match.join(", ")}" placeholder="Matches descriptions containing...">
-          <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template">
+          <label class="field">Repeats every <select id="interval">...</select></label>
+          <label class="field">Matches descriptions containing <input id="match" value="..."></label>
+          <label class="field">Export template <input id="tmpl" value="..."></label>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
-              <input data-i="${i}" data-f="label" value="${s.label}">
-              <select data-i="${i}" data-f="kind">
-                ${["check", "number", "text"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
-              </select>
-              <label><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> req</label>
-              <button data-up="${i}">↑</button><button data-del="${i}">✕</button>
-            </div>`).join("")}
+  <input class="lbl" data-i="${i}" data-f="label" value="${s.label}">
+  <select data-i="${i}" data-f="kind">...</select>
+  <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
+  <div class="btns">
+    <button data-up="${i}">↑</button>
+    <button class="danger" data-del="${i}">✕</button>
+  </div>
+</div>`).join("")}
           <button id="addStep">+ Add step</button>
           <button id="save">Save</button>`;
         // wire handlers (below)
 
         app.querySelectorAll("[data-f]").forEach(el => {
-        el.onchange = () => {
-          const s = p.steps[el.dataset.i];
-          s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+          el.onchange = () => {
+            const s = p.steps[el.dataset.i];
+            s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+          };
+        });
+
+        document.getElementById("cancel").onclick = () => {
+          showAssetScreen(asset);
         };
-      });
+        document.getElementById("addStep").onclick = () => {
+          p.steps.push({ key: "", label: "New step", kind: "check", required: false });
+          draw();
+        };
+        // data-del: p.steps.splice(i, 1); draw()
+        // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
 
-      document.getElementById("cancel").onclick = () => {
-        showAssetScreen(asset);
-      };
-      document.getElementById("addStep").onclick = () => {
-        p.steps.push({ key: "", label: "New step", kind: "check", required: false });
-        draw();
-      };
-      // data-del: p.steps.splice(i, 1); draw()
-      // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
+        document.getElementById("save").onclick = async () => {
+          p.name = document.getElementById("name").value.trim();
+          p.intervalMonths = Number(document.getElementById("interval").value);
+          p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
+          p.exportTemplate = document.getElementById("tmpl").value;
+          p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
+          p.version++;
 
-      document.getElementById("save").onclick = async () => {
-      p.name = document.getElementById("name").value.trim();
-      p.intervalMonths = Number(document.getElementById("interval").value);
-      p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
-      p.exportTemplate = document.getElementById("tmpl").value;
-      p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
-      p.version++;
+          await (await dbPromise).put("procedures", p);
+          await loadProcs();
+          showProcList();
+        };
 
-      await (await dbPromise).put("procedures", p);
-      await loadProcs();
-      showProcList();
-    };
-        
       }
       draw();
     }
 
     // ---------- Boot ----------
     async function boot() {
-      
+
       try {
         const db = await dbPromise;
         if (await db.count("assets") === 0) showImportScreen();
         else showHomeScreen();
 
         await loadProcs()
-        
+
       } catch (err) {
         app.innerHTML = "<pre>" + err + "</pre>";
       }
 
-      
-      
+
+
     }
 
     boot();
@@ -323,4 +475,5 @@
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
   </script>
 </body>
+
 </html>
