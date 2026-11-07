@@ -147,12 +147,25 @@
       margin: 0;
     }
 
-    .stepRow .req {
+    .stepRow .opts {
       grid-area: req;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 14px;
+    }
+
+    .stepRow .opts label {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 14px;
+    }
+
+    .stepRow .opts input {
+      width: 24px;
+      height: 24px;
+      margin: 0;
+      flex: none;
     }
 
     .stepRow .req input {
@@ -688,12 +701,12 @@
       function draw() {
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
-          <label class="field">Precedure Name <input id="name" value="${p.name}"> </label>
+          <label class="field">Precedure Name <input id="name" value="${esc(p.name)}"> </label>
           <label class="field">Repeats Every <select id="interval">
             ${[3, 6, 12, 24].map(m => `<option value="${m}" ${p.intervalMonths === m ? "selected" : ""}>${m} months</option>`).join("")}
           </select></label>
-          <label class="field">Matches descriptions containing <input id="match" value="${p.match.join(", ")}" placeholder="Matches descriptions containing..."></label>
-          <label class="field">Export template <input id="tmpl" value="${p.exportTemplate || ""}" placeholder="Export template"></label>
+          <label class="field">Matches descriptions containing <input id="match" value="${esc(p.match.join(", "))}" placeholder="Matches descriptions containing..."></label>
+          <label class="field">Export template <input id="tmpl" value="${esc(p.exportTemplate || "")}" placeholder="Export template"></label>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
               ${s.kind === "instruction"
@@ -702,8 +715,11 @@
               <select data-i="${i}" data-f="kind">
                 ${["check", "number", "text", "instruction"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
               </select>
-              <label class="req"><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
-              <label class="req"><input type="checkbox" data-i="${i}" data-f="perAsset" ${s.perAsset ? "checked" : ""}> Remember per asset</label>
+              <div class="opts">
+                <label><input type="checkbox" data-i="${i}" data-f="required" ${s.required ? "checked" : ""}> Required</label>
+                ${s.kind === "number" || s.kind === "text" ? `
+                <label><input type="checkbox" data-i="${i}" data-f="perAsset" ${s.perAsset ? "checked" : ""}> Remember per asset</label>` : ""}
+              </div>
               <div class="btns">
                 <button data-up="${i}">↑</button>
                 <button data-down="${i}">↓</button>
