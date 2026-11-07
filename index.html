@@ -384,10 +384,6 @@
   <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>
-    window.onerror = (msg, src, line) => {
-      document.body.innerHTML = "<pre>" + msg + " (line " + line + ")</pre>";
-    };
-
     const app = document.getElementById("app");
 
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -760,6 +756,7 @@
               ...rec,
               values,
               version: proc.version,
+              exported: false,
               edited: new Date().toISOString()
             }, key);
 
@@ -793,41 +790,42 @@
           alert(err);
           toast("Save failed", true);
         }
+      };
+    }
+
+    function showProcEditor(proc, asset) {
+
+      const p = proc
+        ? structuredClone(proc)
+        : {
+          id: crypto.randomUUID(),
+          name: asset.description
+            ? asset.description.toLowerCase() + " Procedure"
+            : "New Precedure",
+          version: 1,
+          intervalMonths: 12,
+          match: asset.description
+            ? [asset.description.toUpperCase()]
+            : [],
+          steps: []
+        };
+
+      function syncTop() {
+        p.name = document.getElementById("name").value;
+        p.intervalMonths = Number(document.getElementById("interval").value);
+        p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
+        p.exportTemplate = document.getElementById("tmpl").value;
       }
 
-      function showProcEditor(proc, asset) {
+      function move(from, to) {
+        if (to < 0 || to >= p.steps.length) return;
+        const [s] = p.steps.splice(from, 1);   // pull it out
+        p.steps.splice(to, 0, s);              // drop it in
+        draw();
+      }
 
-        const p = proc
-          ? structuredClone(proc)
-          : {
-            id: crypto.randomUUID(),
-            name: asset.description
-              ? asset.description.toLowerCase() + " Procedure"
-              : "New Precedure",
-            version: 1,
-            intervalMonths: 12,
-            match: asset.description
-              ? [asset.description.toUpperCase()]
-              : [],
-            steps: []
-          };
-
-        function syncTop() {
-          p.name = document.getElementById("name").value;
-          p.intervalMonths = Number(document.getElementById("interval").value);
-          p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
-          p.exportTemplate = document.getElementById("tmpl").value;
-        }
-
-        function move(from, to) {
-          if (to < 0 || to >= p.steps.length) return;
-          const [s] = p.steps.splice(from, 1);   // pull it out
-          p.steps.splice(to, 0, s);              // drop it in
-          draw();
-        }
-
-        function draw() {
-          app.innerHTML = `
+      function draw() {
+        app.innerHTML = `
           <button id="cancel">← Cancel</button>
           <label class="field">Procedure Name <input id="name" value="${esc(p.name)}"> </label>
           <label class="field">Repeats Every <select id="interval">
@@ -838,8 +836,8 @@
           ${p.steps.map((s, i) => `
             <div class="stepRow">
               ${s.kind === "instruction"
-              ? `<textarea class="lbl" rows="5" data-i="${i}" data-f="label">${esc(s.label)}</textarea>`
-              : `<input class="lbl" data-i="${i}" data-f="label" value="${esc(s.label)}">`}
+            ? `<textarea class="lbl" rows="5" data-i="${i}" data-f="label">${esc(s.label)}</textarea>`
+            : `<input class="lbl" data-i="${i}" data-f="label" value="${esc(s.label)}">`}
               <select data-i="${i}" data-f="kind">
                 ${["check", "number", "text", "instruction"].map(k => `<option ${s.kind === k ? "selected" : ""}>${k}</option>`).join("")}
               </select>
@@ -856,72 +854,72 @@
             </div>`).join("")}
           <button id="addStep">+ Add step</button>
           <button id="save">Save</button>`;
-          // wire handlers (below)
+        // wire handlers (below)
 
-          app.querySelectorAll("[data-f]").forEach(el => {
-            el.onchange = () => {
-              const s = p.steps[el.dataset.i];
-              s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
-              if (el.dataset.f === "kind") { syncTop(); draw(); }
-            };
-          });
-
-
-
-          app.querySelectorAll("[data-up]").forEach(b => {
-            b.onclick = () => { syncTop(); move(+b.dataset.up, +b.dataset.up - 1); };
-          });
-
-          app.querySelectorAll("[data-down]").forEach(b => {
-            b.onclick = () => { syncTop(); move(+b.dataset.down, +b.dataset.down + 1); };
-          });
-
-          app.querySelectorAll("[data-del]").forEach(b => {
-            b.onclick = () => { syncTop(); p.steps.splice(+b.dataset.del, 1); draw(); };
-          });
+        app.querySelectorAll("[data-f]").forEach(el => {
+          el.onchange = () => {
+            const s = p.steps[el.dataset.i];
+            s[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+            if (el.dataset.f === "kind") { syncTop(); draw(); }
+          };
+        });
 
 
-          document.getElementById("cancel").onclick = () => {
+
+        app.querySelectorAll("[data-up]").forEach(b => {
+          b.onclick = () => { syncTop(); move(+b.dataset.up, +b.dataset.up - 1); };
+        });
+
+        app.querySelectorAll("[data-down]").forEach(b => {
+          b.onclick = () => { syncTop(); move(+b.dataset.down, +b.dataset.down + 1); };
+        });
+
+        app.querySelectorAll("[data-del]").forEach(b => {
+          b.onclick = () => { syncTop(); p.steps.splice(+b.dataset.del, 1); draw(); };
+        });
+
+
+        document.getElementById("cancel").onclick = () => {
+          showAssetScreen(asset);
+        };
+        document.getElementById("addStep").onclick = () => {
+          p.steps.push({ key: "", label: "New step", kind: "check", required: false });
+          draw();
+        };
+        // data-del: p.steps.splice(i, 1); draw()
+        // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
+
+        document.getElementById("save").onclick = async () => {
+          p.name = document.getElementById("name").value.trim();
+          p.intervalMonths = Number(document.getElementById("interval").value);
+          p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
+          p.exportTemplate = document.getElementById("tmpl").value;
+          p.steps.forEach(s => { if (!s.key) s.key = esc(s.label).toLowerCase().replace(/\W+/g, "_"); });
+          p.version++;
+
+          try {
+            await (await dbPromise).put("procedures", p);
+            await loadProcs();
+            toast("Saved ✓");
+
             showAssetScreen(asset);
-          };
-          document.getElementById("addStep").onclick = () => {
-            p.steps.push({ key: "", label: "New step", kind: "check", required: false });
-            draw();
-          };
-          // data-del: p.steps.splice(i, 1); draw()
-          // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
 
-          document.getElementById("save").onclick = async () => {
-            p.name = document.getElementById("name").value.trim();
-            p.intervalMonths = Number(document.getElementById("interval").value);
-            p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
-            p.exportTemplate = document.getElementById("tmpl").value;
-            p.steps.forEach(s => { if (!s.key) s.key = esc(s.label).toLowerCase().replace(/\W+/g, "_"); });
-            p.version++;
-
-            try {
-              await (await dbPromise).put("procedures", p);
-              await loadProcs();
-              toast("Saved ✓");
-
-              showAssetScreen(asset);
-
-            } catch (err) {
-              toast("Save failed");
-              await loadProcs();
-              showProcList();
-            }
+          } catch (err) {
+            toast("Save failed");
+            await loadProcs();
+            showProcList();
+          }
 
 
-          };
+        };
 
-        }
-        draw();
       }
+      draw();
+    }
 
-      async function showRecordsScreen() {
-        const recs = await loadRecords();
-        app.innerHTML = `
+    async function showRecordsScreen() {
+      const recs = await loadRecords();
+      app.innerHTML = `
     <button id="back">← Back</button>
     <h2>Records</h2>
     <button id="exportNew">Export new (${recs.filter(r => !r.exported).length})</button>
@@ -934,54 +932,53 @@
         <button class="danger" data-del="${r.key}">Delete</button>
       </div>`).join("")}`;
 
-        document.getElementById("back").onclick = showHomeScreen;
-        document.getElementById("exportNew").onclick = () => exportRecords(recs.filter(r => !r.exported));
-        document.getElementById("exportAll").onclick = () => exportRecords(recs);
+      document.getElementById("back").onclick = showHomeScreen;
+      document.getElementById("exportNew").onclick = () => exportRecords(recs.filter(r => !r.exported));
+      document.getElementById("exportAll").onclick = () => exportRecords(recs);
 
 
 
 
-        app.onclick = async e => {
-          const b = e.target.closest("button");
-          if (!b) return;
+      app.onclick = async e => {
+        const b = e.target.closest("button");
+        if (!b) return;
 
-          if (b.dataset.edit !== undefined) {
-            if (rec.exported && !confirm("This record was already exported. Changes won't reach the old system. Edit anyway?")) return;
-            const rec = recs.find(r => r.key === +b.dataset.edit);
-            const proc = procs.find(p => p.id === rec.procedure);
-            const asset = all.find(a => a.id === rec.assetId);
-            if (!proc || !asset) { toast("Can't edit: procedure or asset missing", true); return; }
-            runProcedure(asset, proc, rec);
-            return;
-          }
-          if (!b || b.dataset.del === undefined) return;
-          if (!confirm("Delete this record?")) return;
-          await (await dbPromise).delete("records", +b.dataset.del);
-          showRecordsScreen();
-        };
-      }
-
-      // ---------- Boot ----------
-      async function boot() {
-
-        try {
-          const db = await dbPromise;
-          if (await db.count("assets") === 0) showImportScreen();
-          else showHomeScreen();
-
-          await loadProcs()
-
-        } catch (err) {
-          app.innerHTML = "<pre>" + err + "</pre>";
+        if (b.dataset.edit !== undefined) {
+          const rec = recs.find(r => r.key === +b.dataset.edit);
+          const proc = procs.find(p => p.id === rec.procedure);
+          const asset = all.find(a => a.id === rec.assetId);
+          if (!proc || !asset) { toast("Can't edit: procedure or asset missing", true); return; }
+          runProcedure(asset, proc, rec);
+          return;
         }
+        if (!b || b.dataset.del === undefined) return;
+        if (!confirm("Delete this record?")) return;
+        await (await dbPromise).delete("records", +b.dataset.del);
+        showRecordsScreen();
+      };
+    }
 
+    // ---------- Boot ----------
+    async function boot() {
 
+      try {
+        const db = await dbPromise;
+        if (await db.count("assets") === 0) showImportScreen();
+        else showHomeScreen();
 
+        await loadProcs()
+
+      } catch (err) {
+        app.innerHTML = "<pre>" + err + "</pre>";
       }
 
-      boot();
 
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+
+    }
+
+    boot();
+
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
   </script>
 </body>
 
