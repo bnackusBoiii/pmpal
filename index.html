@@ -1208,13 +1208,7 @@
         }
       };
 
-      document.getElementById("expImages").onclick = async () => {
-        try {
-          askShare(await buildImagesZIP());
-        } catch (err) {
-          alert("Export failed: " + err);
-        }
-      };
+      document.getElementById("expImages").onclick = exportPhotos();
 
       document.getElementById("clearPhotosProcs").onclick = async () => {
         if (!confirm("Delete all photos and procedures on this phone?")) return;
