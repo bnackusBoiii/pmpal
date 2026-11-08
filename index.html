@@ -1210,7 +1210,7 @@
 
       document.getElementById("expImages").onclick = async () => {
         try {
-          askShare(await buildStaticCSV());
+          askShare(await buildImagesZIP());
         } catch (err) {
           alert("Export failed: " + err);
         }
