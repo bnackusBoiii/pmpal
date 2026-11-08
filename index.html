@@ -470,6 +470,17 @@
       }
     }
 
+    async function buildStaticFile() {
+      const db = await dbPromise;
+      const bundle = {
+        kind: "pmpal-static",
+        exportedAt: new Date().toISOString(),
+        procedures: await db.getAll("procedures"),
+        assetData: await db.getAll("assetData")
+      };
+      return new File([JSON.stringify(bundle, null, 2)], "pmpal-static.json", { type: "application/json" });
+    }
+
     async function exportStatic() {
       try {
         const db = await dbPromise;
@@ -1067,7 +1078,16 @@
     <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>`;
 
       document.getElementById("back").onclick = showHomeScreen;
-      document.getElementById("expStatic").onclick = exportStatic;
+      document.getElementById("expStatic").onclick = async () => {
+        try {
+          const file = await buildStaticFile();
+          if (confirm(`Export ready (${Math.round(file.size / 1024)} KB). Share it now?`)) {
+            await shareOrDownload(file);
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") alert("Export failed: " + err);
+        }
+      };
 
       document.getElementById("impStatic").onchange = e => importStatic(e.target.files[0]);
 
