@@ -1093,7 +1093,7 @@
         if (!e.target.files[0]) return;
         const dataUrl = await shrinkPhoto(e.target.files[0]);
         await (await dbPromise).put("photos", dataUrl, asset.id);
-        showAssetScreen(asset);
+        showAssetScreen(asset).catch(err => alert(err));
       };
 
       document.getElementById("back").onclick = showHomeScreen;
