@@ -1449,6 +1449,7 @@
 
       const box = ov.querySelector("#pResults");
       const search = ov.querySelector("#pSearch");
+      const pickedBox = ov.querySelector("#pPicked");
       const byId = async ids => (await Promise.all(ids.map(id => db.get("assets", id)))).filter(Boolean);
 
       async function draw(q) {
