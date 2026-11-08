@@ -522,6 +522,21 @@
       return new File([JSON.stringify(bundle, null, 2)], "pmpal-static.json", { type: "application/json" });
     }
 
+    async function buildStaticCSV() {
+      const db = await dbPromise;
+      const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+      const lines = [["type", "id", "version", "updated", "data"].map(cell).join(",")];
+
+      (await db.getAll("procedures")).forEach(p =>
+        lines.push(["procedure", p.id, p.version, "", JSON.stringify(p)].map(cell).join(",")));
+
+      (await db.getAll("assetData")).forEach(a =>
+        lines.push(["assetData", a.id, "", a.updated || "", JSON.stringify(a)].map(cell).join(",")));
+
+      return new File([lines.join("\n")], "pmpal-static.csv", { type: "text/csv" });
+    }
+
     function askShare(file) {
       const ov = document.createElement("div");
       ov.className = "overlay";
@@ -572,19 +587,23 @@
 
     async function importStatic(file) {
       try {
-        const bundle = JSON.parse(await file.text());
-        if (bundle.kind !== "pmpal-static") throw new Error("Not a PM-pal static data file");
+        const rows = parseCSV(await file.text());
+        if (rows[0]?.[0] !== "type") throw new Error("Not a PM-pal static data file");
 
         const db = await dbPromise;
         let nProc = 0, nData = 0;
 
-        for (const p of bundle.procedures || []) {
-          const mine = await db.get("procedures", p.id);
-          if (!mine || p.version > mine.version) { await db.put("procedures", p); nProc++; }
-        }
-        for (const a of bundle.assetData || []) {
-          const mine = await db.get("assetData", a.id);
-          if (!mine || (a.updated || "") > (mine.updated || "")) { await db.put("assetData", a); nData++; }
+        for (const [type, id, , , data] of rows.slice(1)) {
+          if (!data) continue;
+          const obj = JSON.parse(data);
+
+          if (type === "procedure") {
+            const mine = await db.get("procedures", obj.id);
+            if (!mine || obj.version > mine.version) { await db.put("procedures", obj); nProc++; }
+          } else if (type === "assetData") {
+            const mine = await db.get("assetData", obj.id);
+            if (!mine || (obj.updated || "") > (mine.updated || "")) { await db.put("assetData", obj); nData++; }
+          }
         }
 
         await loadProcs();
@@ -1131,16 +1150,15 @@
     <button id="back">← Back</button>
     <h2>Tools</h2>
     <button id="expStatic">Export static data</button>
-    <label class="fileBtn">Import static data <input type="file" accept=".json" id="impStatic" hidden></label>
+    <label class="fileBtn">Import static data <input type="file" accept=".csv" id="impStatic" hidden></label>
     <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>`;
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("expStatic").onclick = async () => {
         try {
-          const file = await buildStaticFile();
-          askShare(file);
+          askShare(await buildStaticCSV());
         } catch (err) {
-          if (err.name !== "AbortError") alert("Export failed: " + err);
+          alert("Export failed: " + err);
         }
       };
 
