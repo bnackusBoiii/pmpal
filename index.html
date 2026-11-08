@@ -1048,7 +1048,7 @@
         const card = e.target.closest(".card");
         if (!card) return;
         const asset = all.find(a => a.id === card.dataset.id);
-        showAssetScreen(asset).catch(err => alert(err));
+        showAssetScreen(asset);
       };
 
       document.getElementById("records").onclick = e => {
@@ -1060,14 +1060,15 @@
 
     async function showAssetScreen(asset) {
       stopScan();
-      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const anchorMonth = data?.pmAnchor ? +data.pmAnchor.split("-")[1] : 0;
+      
       const db = await dbPromise;
       const photo = await db.get("photos", asset.id);
       const data = await db.get("assetData", asset.id);
       const bg = photo
         ? `style="background-image: url('${photo}')"`
         : "";
+      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const anchorMonth = data?.pmAnchor ? +data.pmAnchor.split("-")[1] : 0;
 
       app.innerHTML = `
     <button id="back">← Back</button>
