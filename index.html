@@ -475,6 +475,60 @@
       margin-left: 6px;
       cursor: pointer;
     }
+
+    .picker {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 25;
+      overflow-y: auto;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .pickHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .pickHead h2 {
+      margin: 0;
+    }
+
+    .pickHead button {
+      width: auto;
+      padding: 8px 18px;
+    }
+
+    .picker h3 {
+      margin: 16px 0 4px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .card.picked {
+      position: relative;
+      outline: 3px solid #1a7f37;
+      outline-offset: -3px;
+    }
+
+    .card.picked::after {
+      content: "✓";
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #1a7f37;
+      color: #fff;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 
 </head>
@@ -508,28 +562,32 @@
       }
     ];
 
-    let scanner = null;
+    const cardHTML = a => `
+  <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
+    <div class="info">
+      <div class="id">${esc(a.id)}</div>
+      <div class="desc">${esc(a.description)}</div>
+      <div class="loc">${esc(a.location)}</div>
+    </div>
+  </div>`;
+
+    let scanner = null, scanBtn = null;
 
     async function stopScan() {
       if (!scanner) return;
       try { await scanner.stop(); } catch { }
       scanner = null;
-      document.getElementById("scan").textContent = "Scan";
+      if (scanBtn) scanBtn.textContent = "Scan";
+      scanBtn = null;
     }
 
-    async function startScan() {
-      scanner = new Html5Qrcode("reader");
-      document.getElementById("scan").textContent = "Cancel scan";
+    async function startScan(readerId, btn, onText) {
+      scanner = new Html5Qrcode(readerId);
+      scanBtn = btn;
+      btn.textContent = "Cancel scan";
       try {
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10 },
-          async text => {
-            await stopScan();
-            document.getElementById("search").value = text;
-            runSearch(text);
-          }
-        );
+        await scanner.start({ facingMode: "environment" }, { fps: 10 },
+          async text => { await stopScan(); onText(text); });
       } catch (err) {
         await stopScan();
         toast("Camera unavailable", true);
@@ -703,9 +761,9 @@
       }
     }
 
-    async function addCardPhotos() {
+    async function addCardPhotos(root = document.getElementById("results")) {
       const db = await dbPromise;
-      for (const card of document.querySelectorAll("#results .card")) {
+      for (const card of root.querySelectorAll(".card")) {
         const photo = await db.get("photos", card.dataset.id);
         if (photo) {
           card.style.setProperty("--photo", `url('${photo}')`);
@@ -734,6 +792,26 @@
         };
         img.src = URL.createObjectURL(file);
       });
+    }
+
+    async function toolHistory(assetId) {
+      const recs = await (await dbPromise).getAll("records");
+      recs.sort((a, b) => b.date.localeCompare(a.date));   // newest first
+
+      const seen = new Set(), here = [], other = [];
+      function collect(list, out) {
+        for (const r of list) for (const t of r.toolsUsed || []) {
+          if (!seen.has(t)) { seen.add(t); out.push(t); }
+        }
+      }
+      collect(recs.filter(r => r.assetId === assetId), here);   // this equipment first
+      collect(recs, other);                                      // then everything else
+      return { here, other };
+    }
+
+    function searchAssets(q) {
+      q = q.trim().toUpperCase();
+      return all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20);
     }
 
     async function loadDue() {
@@ -877,7 +955,7 @@
     let dueIds = new Set();
 
     async function showHomeScreen() {
-
+      stopScan();
 
 
       app.innerHTML = `
@@ -898,28 +976,25 @@
 
       function runSearch(q) {
         q = q.trim().toUpperCase();
-        const hits = q
-          ? all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20)
-          : all.filter(a => dueIds.has(a.id));
+        const hits = q ? searchAssets(q) : all.filter(a => dueIds.has(a.id));
 
         document.getElementById("results").innerHTML =
           (!q && hits.length ? `<h3>Due this month</h3>` : "") +
-          hits.map(a => `
-      <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
-        <div class="info">
-          <div class="id">${esc(a.id)}</div>
-          <div class="desc">${esc(a.description)}</div>
-          <div class="loc">${esc(a.location)}</div>
-        </div>
-      </div>`).join("");
+          hits.map(cardHTML).join("");
 
         addCardPhotos();
       }
 
-      document.getElementById("search").oninput = e => runSearch(e.target.value);
+      const search = document.getElementById("search");
+      const btn = document.getElementById("scan");
 
-      document.getElementById("scan").onclick = () => scanner ? stopScan() : startScan();
-      document.getElementById("search").onfocus = stopScan;
+      search.oninput = e => runSearch(e.target.value);
+      search.onfocus = stopScan;
+
+      btn.onclick = () =>
+        scanner
+          ? stopScan()
+          : startScan("reader", btn, t => { search.value = t; runSearch(t); });
 
       document.getElementById("results").onclick = e => {
         const card = e.target.closest(".card");
@@ -1020,10 +1095,8 @@
           toolsUsed.map((id, i) => `<span class="chip">${esc(id)} <b data-rm="${i}">✕</b></span>`).join("") +
           `<button id="addTool">+ Add equipment</button>`;
 
-        document.getElementById("addTool").onclick = () => {
-          const id = prompt("Asset ID of equipment used")?.trim().toUpperCase();
-          if (id && !toolsUsed.includes(id)) { toolsUsed.push(id); renderTools(); }
-        };
+        document.getElementById("addTool").onclick = () => showToolPicker(asset, toolsUsed, renderTools);
+
         document.querySelectorAll("[data-rm]").forEach(b => {
           b.onclick = () => { toolsUsed.splice(+b.dataset.rm, 1); renderTools(); };
         });
@@ -1314,6 +1387,57 @@
         if (!confirm("Replace this phone's asset list?")) { e.target.value = ""; return; }
         reimportAssets(e.target.files[0]);
       };
+    }
+
+    async function showToolPicker(asset, toolsUsed, onDone) {
+      const db = await dbPromise;
+      if (!all.length) all = await db.getAll("assets");
+      const hist = await toolHistory(asset.id);
+
+      const ov = document.createElement("div");
+      ov.className = "picker";
+      ov.innerHTML = `
+    <div class="pickHead"><h2>Equipment used</h2><button id="pDone">Done</button></div>
+    <input id="pSearch" placeholder="Search equipment" autocapitalize="characters" autocorrect="off" spellcheck="false">
+    <button id="pScan">Scan</button>
+    <div id="pReader"></div>
+    <div id="pResults"></div>`;
+      document.body.appendChild(ov);
+
+      const box = ov.querySelector("#pResults");
+      const search = ov.querySelector("#pSearch");
+      const byId = async ids => (await Promise.all(ids.map(id => db.get("assets", id)))).filter(Boolean);
+
+      async function draw(q) {
+        let html;
+        if (q.trim()) {
+          html = searchAssets(q).map(cardHTML).join("");
+        } else {
+          const here = await byId(hist.here), other = await byId(hist.other);
+          html = (here.length ? `<h3>Used on this equipment before</h3>${here.map(cardHTML).join("")}` : "")
+            + (other.length ? `<h3>Your equipment</h3>${other.map(cardHTML).join("")}` : "");
+          if (!html) html = `<p>Search or scan to add equipment.</p>`;
+        }
+        box.innerHTML = html;
+        box.querySelectorAll(".card").forEach(c => c.classList.toggle("picked", toolsUsed.includes(c.dataset.id)));
+        addCardPhotos(box);
+      }
+
+      box.onclick = e => {
+        const c = e.target.closest(".card");
+        if (!c) return;
+        const i = toolsUsed.indexOf(c.dataset.id);
+        i === -1 ? toolsUsed.push(c.dataset.id) : toolsUsed.splice(i, 1);
+        c.classList.toggle("picked");
+      };
+
+      search.oninput = () => draw(search.value);
+      search.onfocus = stopScan;
+      ov.querySelector("#pScan").onclick = e =>
+        scanner ? stopScan() : startScan("pReader", e.target, t => { search.value = t; draw(t); });
+      ov.querySelector("#pDone").onclick = () => { stopScan(); ov.remove(); onDone(); };
+
+      draw("");
     }
 
     // ---------- Boot ----------
