@@ -1193,8 +1193,8 @@
     <h2>Tools</h2>
     <button id="expStatic">Export static data</button>
     <label class="fileBtn">Import static data <input type="file" accept=".csv" id="impStatic" hidden></label>
-    <button id="expImages">Export photos (ZIP)</button>
-    <label class="fileBtn">Import photos (ZIP) <input type="file" accept=".zip" id="impPhotos" hidden></label>
+    <button id="expImages">Export images (ZIP)</button>
+    <label class="fileBtn">Import images (ZIP) <input type="file" accept=".zip" id="impPhotos" hidden></label>
     <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>
     <button id="clearPhotosProcs" class="danger">Delete photos + procedures (testing)</button>
     `;
@@ -1208,7 +1208,7 @@
         }
       };
 
-      document.getElementById("expImages").onclick = exportPhotos();
+      document.getElementById("expImages").onclick = () => exportPhotos();
 
       document.getElementById("clearPhotosProcs").onclick = async () => {
         if (!confirm("Delete all photos and procedures on this phone?")) return;
