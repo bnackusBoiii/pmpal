@@ -462,6 +462,19 @@
     .modal .gray {
       background: #6b7280;
     }
+
+    .chip {
+      display: inline-block;
+      background: #e8f0fc;
+      border-radius: 12px;
+      padding: 6px 10px;
+      margin: 0 6px 6px 0;
+    }
+
+    .chip b {
+      margin-left: 6px;
+      cursor: pointer;
+    }
   </style>
 
 </head>
@@ -735,7 +748,7 @@
     }
 
     function formatRecord(template, rec) {
-      const data = { id: rec.assetId, date: rec.date.slice(0, 10), nextDue: rec.nextDue, ...rec.values };
+      const data = { id: rec.assetId, date: rec.date.slice(0, 10), nextDue: rec.nextDue, ...rec.values, tools: (rec.toolsUsed || []).join(", ") };
       return template.replace(/\{(\w+)\}/g, (_, k) => {
         const v = data[k];
         return v === true ? "Pass" : v === false ? "Fail" : (v ?? "");
@@ -966,6 +979,7 @@
     async function runProcedure(asset, proc, existing) {
 
       const saved = (await (await dbPromise).get("assetData", asset.id))?.values || {};
+      const toolsUsed = [...(existing?.toolsUsed || [])];
 
       const fields = proc.steps.map((s, i) => {
         if (s.kind === "instruction") {
@@ -984,20 +998,37 @@
 
 
         return `<label class="step ${s.kind}">
-    <span class="stepLabel">${esc(s.label)}${s.required ? '<b class="star"> *</b>' : ""}</span>
-    ${input}
-  </label>`;
+        <span class="stepLabel">${esc(s.label)}${s.required ? '<b class="star"> *</b>' : ""}</span>
+          ${input}
+        </label>`;
       }).join("");
 
       app.innerHTML = `
-  <button id="back">← Back</button>
-  <div class="runHead">
-    <h2>${esc(proc.name)}</h2>
-    <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
-    <div class="assetLoc">${esc(asset.location)}</div>
-  </div>
-  ${fields}
-  <button id="finish">Finish</button>`;
+        <button id="back">← Back</button>
+        <div class="runHead">
+          <h2>${esc(proc.name)}</h2>
+          <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
+          <div class="assetLoc">${esc(asset.location)}</div>
+        </div>
+        ${fields}
+        <h3>Equipment used</h3>
+        <div id="toolsBox"></div>
+        <button id="finish">Finish</button>`;
+
+      function renderTools() {
+        document.getElementById("toolsBox").innerHTML =
+          toolsUsed.map((id, i) => `<span class="chip">${esc(id)} <b data-rm="${i}">✕</b></span>`).join("") +
+          `<button id="addTool">+ Add equipment</button>`;
+
+        document.getElementById("addTool").onclick = () => {
+          const id = prompt("Asset ID of equipment used")?.trim().toUpperCase();
+          if (id && !toolsUsed.includes(id)) { toolsUsed.push(id); renderTools(); }
+        };
+        document.querySelectorAll("[data-rm]").forEach(b => {
+          b.onclick = () => { toolsUsed.splice(+b.dataset.rm, 1); renderTools(); };
+        });
+      }
+      renderTools();
 
       document.getElementById("back").onclick = () => showAssetScreen(asset);
 
@@ -1031,6 +1062,7 @@
             await db.put("records", {
               ...rec,
               values,
+              toolsUsed,
               version: proc.version,
               exported: false,
               edited: new Date().toISOString()
@@ -1049,7 +1081,8 @@
               date,
               nextDue: addMonths(date, proc.intervalMonths),
               exported: false,
-              values
+              values,
+              toolsUsed
             });
 
             const linked = {};
