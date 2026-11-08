@@ -1347,7 +1347,7 @@
         });
 
 
-        document.getElementById("cancel").onclick = () => onDone();
+
 
         document.getElementById("addStep").onclick = () => {
           p.steps.push({ key: "", label: "New step", kind: "check", required: false });
@@ -1356,12 +1356,11 @@
         // data-del: p.steps.splice(i, 1); draw()
         // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
 
+        document.getElementById("cancel").onclick = () => onDone();
+
         document.getElementById("save").onclick = async () => {
-          p.name = document.getElementById("name").value.trim();
-          p.intervalMonths = Number(document.getElementById("interval").value);
-          p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
-          p.exportTemplate = document.getElementById("tmpl").value;
-          p.steps.forEach(s => { if (!s.key) s.key = esc(s.label).toLowerCase().replace(/\W+/g, "_"); });
+          syncTop();   // if you have it; otherwise keep your four p.name / p.intervalMonths / p.match / p.exportTemplate lines
+          p.steps.forEach(s => { if (!s.key) s.key = s.label.toLowerCase().replace(/\W+/g, "_"); });
           p.version++;
 
           try {
@@ -1374,8 +1373,6 @@
 
           toast("Saved ✓");
           onDone();
-
-
         };
 
       }
