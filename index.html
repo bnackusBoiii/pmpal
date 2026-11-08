@@ -501,15 +501,15 @@
     }
 
     async function shareOrDownload(file) {
-      alert("1. entered. type=" + file.type + ", size=" + file.size);
+
 
       try {
         const can = navigator.canShare ? navigator.canShare({ files: [file] }) : "no canShare";
-        alert("2. canShare = " + can);
+
 
         if (can === true) {
           await navigator.share({ files: [file] });
-          alert("3. share finished");
+
           return;
         }
       } catch (err) {
@@ -517,7 +517,7 @@
         if (err.name === "AbortError") return;
       }
 
-      alert("4. falling back to download");
+
       const a = document.createElement("a");
       a.href = URL.createObjectURL(file);
       a.download = file.name;
