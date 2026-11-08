@@ -1445,7 +1445,7 @@
       }
       window.visualViewport?.addEventListener("resize", fitPicker);
       window.visualViewport?.addEventListener("scroll", fitPicker);
-      fitPicker();
+      
 
       const box = ov.querySelector("#pResults");
       const search = ov.querySelector("#pSearch");
@@ -1506,8 +1506,9 @@
         drawPicked();
       };
 
-      draw("");
       drawPicked();
+      draw("");
+      fitPicker();
     }
 
     // ---------- Boot ----------
