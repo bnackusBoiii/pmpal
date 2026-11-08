@@ -504,14 +504,11 @@
 
 
       try {
-        const can = navigator.canShare ? navigator.canShare({ files: [file] }) : "no canShare";
 
+        await navigator.share({ files: [file] });
 
-        if (can === true) {
-          await navigator.share({ files: [file] });
+        return;
 
-          return;
-        }
       } catch (err) {
         alert("share error: " + err.name + " / " + err.message);
         if (err.name === "AbortError") return;
