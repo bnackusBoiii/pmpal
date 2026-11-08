@@ -448,6 +448,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script>
     const app = document.getElementById("app");
 
@@ -608,6 +609,47 @@
 
         await loadProcs();
         toast(`Imported ${nProc} procedures, ${nData} asset entries`);
+      } catch (err) {
+        alert("Import failed: " + err);
+      }
+    }
+
+    async function exportPhotos() {
+      try {
+        const db = await dbPromise;
+        const keys = await db.getAllKeys("photos");
+        if (!keys.length) { toast("No photos yet", true); return; }
+
+        toast("Building zip...");
+        const zip = new JSZip();
+        for (const k of keys) {
+          const dataUrl = await db.get("photos", k);
+          zip.file(encodeURIComponent(k) + ".jpg", dataUrl.split(",")[1], { base64: true });
+        }
+
+        const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+        askShare(new File([blob], "pmpal-photos.zip", { type: "application/zip" }));
+      } catch (err) {
+        alert("Export failed: " + err);
+      }
+    }
+
+    async function importPhotos(file) {
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const db = await dbPromise;
+        let added = 0, skipped = 0;
+
+        for (const entry of Object.values(zip.files)) {
+          if (entry.dir || !entry.name.endsWith(".jpg")) continue;
+          const id = decodeURIComponent(entry.name.slice(0, -4));
+          if (await db.getKey("photos", id) !== undefined) { skipped++; continue; }
+
+          const b64 = await entry.async("base64");
+          await db.put("photos", "data:image/jpeg;base64," + b64, id);
+          added++;
+        }
+        toast(`Added ${added} photos, skipped ${skipped}`);
       } catch (err) {
         alert("Import failed: " + err);
       }
@@ -1151,7 +1193,11 @@
     <h2>Tools</h2>
     <button id="expStatic">Export static data</button>
     <label class="fileBtn">Import static data <input type="file" accept=".csv" id="impStatic" hidden></label>
-    <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>`;
+    <button id="expImages">Export photos (ZIP)</button>
+    <label class="fileBtn">Import photos (ZIP) <input type="file" accept=".zip" id="impPhotos" hidden></label>
+    <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>
+    <button id="clearPhotosProcs" class="danger">Delete photos + procedures (testing)</button>
+    `;
 
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("expStatic").onclick = async () => {
@@ -1162,7 +1208,30 @@
         }
       };
 
+      document.getElementById("expImages").onclick = async () => {
+        try {
+          askShare(await buildStaticCSV());
+        } catch (err) {
+          alert("Export failed: " + err);
+        }
+      };
+
+      document.getElementById("clearPhotosProcs").onclick = async () => {
+        if (!confirm("Delete all photos and procedures on this phone?")) return;
+        try {
+          const db = await dbPromise;
+          await db.clear("photos");
+          await db.clear("procedures");
+          await loadProcs();   // refills procedures from your hardcoded defaults
+          toast("Photos and procedures deleted");
+        } catch (err) {
+          alert("Delete failed: " + err);
+        }
+      };
+
       document.getElementById("impStatic").onchange = e => importStatic(e.target.files[0]);
+
+      document.getElementById("impPhotos").onchange = e => importPhotos(e.target.files[0]);
 
       document.getElementById("impAssets").onchange = e => {
         if (!confirm("Replace this phone's asset list?")) { e.target.value = ""; return; }
