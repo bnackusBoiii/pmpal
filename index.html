@@ -1261,16 +1261,16 @@
       };
     }
 
-    function showProcEditor(proc, asset) {
+    function showProcEditor(proc, asset, onDone) {
 
       const p = proc
         ? structuredClone(proc)
         : {
           id: crypto.randomUUID(),
-          name: asset.description
+          name: asset?.description
             ? asset.description.toLowerCase() + " Procedure"
-            : "New Precedure",
-          version: 1,
+            : "New Procedure",
+          version: 0,
           intervalMonths: 12,
           match: asset.description
             ? [asset.description.toUpperCase()]
