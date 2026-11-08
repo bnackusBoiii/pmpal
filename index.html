@@ -605,6 +605,9 @@
     </div>
   </div>`;
 
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const anchorMonth = data?.pmAnchor ? +data.pmAnchor.split("-")[1] : 0;
+
     let scanner = null, scanBtn = null;
 
     async function stopScan() {
@@ -864,7 +867,7 @@
         const [y, m] = d.pmAnchor.split("-");
         const interval = procs.find(p => p.id === latest[d.id].procedure)?.intervalMonths;
         const gap = nowIdx - idx(+y, +m - 1);
-        if (!interval || gap < 0 || gap % interval !== 0) continue;
+        if (!interval || (((gap % interval) + interval) % interval) !== 0) continue;
 
         const last = new Date(latest[d.id].date);
         if (idx(last.getFullYear(), last.getMonth()) !== nowIdx) dueIds.add(d.id);   // not already done this month
@@ -1079,7 +1082,12 @@
         <p>${esc(asset.location)}</p>
       </div>
     </div>
-    <input type="month" id="anchor" value="${data?.pmAnchor || ""}">
+    <label class="field">PM month
+      <select id="anchor">
+        <option value="">Not set</option>
+        ${months.map((m, i) => `<option value="${i + 1}" ${anchorMonth === i + 1 ? "selected" : ""}>${m}</option>`).join("")}
+      </select>
+    </label>
     <button id="start">Start PM</button>`;
 
       document.getElementById("photo").onchange = async e => {
@@ -1099,7 +1107,11 @@
         const proc = findProcedure(asset);
         showProcEditor(proc, asset);
       };
-      document.getElementById("anchor").onchange = e => patchAssetData(asset.id, { pmAnchor: e.target.value });
+      document.getElementById("anchor").onchange = e => {
+        if (!e.target.value) return;
+        const year = data?.pmAnchor ? data.pmAnchor.split("-")[0] : new Date().getFullYear();
+        patchAssetData(asset.id, { pmAnchor: `${year}-${String(e.target.value).padStart(2, "0")}` });
+      };
       // back + start handlers as before
     }
 
