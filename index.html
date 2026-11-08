@@ -501,15 +501,30 @@
     }
 
     async function shareOrDownload(file) {
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(file);
-        a.download = file.name;
-        a.click();
-        URL.revokeObjectURL(a.href);
+      alert("1. entered. type=" + file.type + ", size=" + file.size);
+
+      try {
+        const can = navigator.canShare ? navigator.canShare({ files: [file] }) : "no canShare";
+        alert("2. canShare = " + can);
+
+        if (can === true) {
+          await navigator.share({ files: [file] });
+          alert("3. share finished");
+          return;
+        }
+      } catch (err) {
+        alert("share error: " + err.name + " / " + err.message);
+        if (err.name === "AbortError") return;
       }
+
+      alert("4. falling back to download");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     }
 
     async function buildStaticFile() {
@@ -1208,7 +1223,7 @@
         }
       };
 
-      document.getElementById("expImages").onclick = () => exportPhotos();
+      document.getElementById("expImages").onclick = async () => exportPhotos();
 
       document.getElementById("clearPhotosProcs").onclick = async () => {
         if (!confirm("Delete all photos and procedures on this phone?")) return;
