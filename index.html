@@ -54,10 +54,13 @@
       background-size: cover;
       background-position: center;
       border-radius: 12px;
+      min-height: 96px;
+
     }
 
     .card.hasPhoto {
       min-height: 96px;
+      background-image: var(--photo);
     }
 
     .card.hasPhoto .info {
@@ -69,6 +72,13 @@
       color: #fff;
       border-radius: 12px;
       padding: 6px 10px;
+
+    }
+
+    .card.due.hasPhoto {
+      background-image:
+        linear-gradient(rgba(255, 214, 0, .45), rgba(255, 214, 0, .45)),
+        var(--photo);
     }
 
     .id {
@@ -84,6 +94,10 @@
       margin-top: 2px;
       color: #666;
       font-size: 14px;
+    }
+
+    .card.hasPhoto .loc {
+      color: #eee;
     }
 
 
@@ -447,16 +461,6 @@
 
     .modal .gray {
       background: #6b7280;
-    }
-
-    .card.hasPhoto {
-      background-image: var(--photo);
-    }
-
-    .card.due.hasPhoto {
-      background-image:
-        linear-gradient(rgba(255, 214, 0, .45), rgba(255, 214, 0, .45)),
-        var(--photo);
     }
   </style>
 
