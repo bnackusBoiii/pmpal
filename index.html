@@ -591,6 +591,11 @@
       }
     ];
 
+    const blankProc = {
+      id: "blank", name: "General PM", version: 1, intervalMonths: 12,
+      match: [], exportTemplate: "{id} | {date} | {tools}", steps: []
+    };
+
     const cardHTML = a => `
   <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
     <div class="info">
@@ -844,14 +849,26 @@
     }
 
     async function loadDue() {
-      const recs = await (await dbPromise).getAll("records");
+      const db = await dbPromise;
+      const [recs, data] = await Promise.all([db.getAll("records"), db.getAll("assetData")]);
+
+      const idx = (y, m) => y * 12 + m;
+      const n = new Date(), nowIdx = idx(n.getFullYear(), n.getMonth());
+
       const latest = {};
-      recs.forEach(r => {
-        if (!latest[r.assetId] || r.date > latest[r.assetId].date) latest[r.assetId] = r;
-      });
-      const now = new Date();
-      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      dueIds = new Set(Object.values(latest).filter(r => r.nextDue.slice(0, 7) === month).map(r => r.assetId));
+      recs.forEach(r => { if (!latest[r.assetId] || r.date > latest[r.assetId].date) latest[r.assetId] = r; });
+
+      dueIds = new Set();
+      for (const d of data) {
+        if (!d.pmAnchor || !latest[d.id]) continue;
+        const [y, m] = d.pmAnchor.split("-");
+        const interval = procs.find(p => p.id === latest[d.id].procedure)?.intervalMonths;
+        const gap = nowIdx - idx(+y, +m - 1);
+        if (!interval || gap < 0 || gap % interval !== 0) continue;
+
+        const last = new Date(latest[d.id].date);
+        if (idx(last.getFullYear(), last.getMonth()) !== nowIdx) dueIds.add(d.id);   // not already done this month
+      }
     }
 
     function formatRecord(template, rec) {
@@ -907,8 +924,9 @@
     }
 
     function findProcedure(asset) {
-      const desc = asset.description.toUpperCase();
-      return procs.find(p => p.match.some(m => desc.includes(m)));
+      const d = asset.description.toUpperCase();
+      return procs.find(p => p.id !== "blank" && p.match.some(m => d.includes(m)))
+        || procs.find(p => p.id === "blank");
     }
 
     let procs = [];
@@ -918,6 +936,7 @@
       if (await db.count("procedures") === 0) {
         for (const p of defaultProcedures) await db.put("procedures", p);
       }
+      if (!(await db.get("procedures", "blank"))) await db.put("procedures", blankProc);
       procs = await db.getAll("procedures");
     }
 
@@ -1058,6 +1077,7 @@
         <p>${esc(asset.location)}</p>
       </div>
     </div>
+    <input type="month" id="anchor" value="${data?.pmAnchor || ""}">
     <button id="start">Start PM</button>`;
 
       document.getElementById("photo").onchange = async e => {
@@ -1077,6 +1097,7 @@
         const proc = findProcedure(asset);
         showProcEditor(proc, asset);
       };
+      document.getElementById("anchor").onchange = e => patchAssetData(asset.id, { pmAnchor: e.target.value });
       // back + start handlers as before
     }
 
@@ -1109,6 +1130,7 @@
 
       app.innerHTML = `
         <button id="back">← Back</button>
+        <button id="editProc" class="toolsBtn">✏️ Edit procedure</button>
         <div class="runHead">
           <h2>${esc(proc.name)}</h2>
           <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
@@ -1133,6 +1155,19 @@
       renderTools();
 
       document.getElementById("back").onclick = () => showAssetScreen(asset);
+
+      document.getElementById("editProc").onclick = () => {
+        if (!confirm("Entries on this page will be lost. Edit the procedure?")) return;
+
+        const target = proc.id === "blank"
+          ? {
+            id: crypto.randomUUID(), name: asset.description, version: 0, intervalMonths: 12,
+            match: [asset.description.toUpperCase()], exportTemplate: "", steps: []
+          }
+          : proc;
+
+        showProcEditor(target, () => runProcedure(asset, findProcedure(asset) || proc, existing));
+      };
 
       document.getElementById("finish").onclick = async () => {
         const values = {};
@@ -1166,7 +1201,6 @@
               values,
               toolsUsed,
               version: proc.version,
-              exported: false,
               edited: new Date().toISOString()
             }, key);
 
@@ -1176,6 +1210,15 @@
           } else {
             // NEW: add a record, then remember the per-asset values
             const date = new Date().toISOString();
+
+            const data = await db.get("assetData", asset.id);
+            if (!data?.pmAnchor) {
+              const n = new Date();
+              await patchAssetData(asset.id, {
+                pmAnchor: `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`
+              });
+            }
+
             await db.add("records", {
               assetId: asset.id,
               procedure: proc.id,
@@ -1191,8 +1234,8 @@
             proc.steps.forEach(s => {
               if (s.perAsset && values[s.key] !== "") linked[s.key] = values[s.key];
             });
-            const prev = (await db.get("assetData", asset.id))?.values || {};
-            await patchAssetData(asset.id, { values: { ...prev, ...linked } });
+            const prevValues = data?.values || {};
+            await patchAssetData(asset.id, { values: { ...prevValues, ...linked } });
 
             toast("PM saved ✓");
             showAssetScreen(asset);
@@ -1445,7 +1488,7 @@
       }
       window.visualViewport?.addEventListener("resize", fitPicker);
       window.visualViewport?.addEventListener("scroll", fitPicker);
-      
+
 
       const box = ov.querySelector("#pResults");
       const search = ov.querySelector("#pSearch");
