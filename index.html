@@ -1173,14 +1173,11 @@
       document.getElementById("editProc").onclick = () => {
         if (!confirm("Entries on this page will be lost. Edit the procedure?")) return;
 
-        const target = proc.id === "blank"
-          ? {
-            id: crypto.randomUUID(), name: asset.description, version: 0, intervalMonths: 12,
-            match: [asset.description.toUpperCase()], exportTemplate: "", steps: []
-          }
-          : proc;
-
-        showProcEditor(target, () => runProcedure(asset, findProcedure(asset) || proc, existing));
+        showProcEditor(
+          proc.id === "blank" ? null : proc,
+          asset,
+          () => runProcedure(asset, findProcedure(asset) || proc, existing)
+        );
       };
 
       document.getElementById("finish").onclick = async () => {
