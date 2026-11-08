@@ -375,16 +375,29 @@
       background: rgba(255, 255, 255, .35);
     }
 
-    .gear {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      width: 44px;
-      height: 44px;
-      padding: 0;
-      background: none;
-      color: #555;
-      font-size: 26px;
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+    }
+
+    .toolsBtn {
+      width: auto;
+      padding: 8px 14px;
+      font-size: 20px;
+      line-height: 1;
+      background: #e8f0fc;
+      border: 1px solid #c9d8f0;
+      border-radius: 10px;
+    }
+
+    .toolsBtn:active {
+      background: #d5e4fa;
     }
 
     .fileBtn {
@@ -397,6 +410,34 @@
       font-size: 16px;
       margin-bottom: 8px;
       cursor: pointer;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      width: 80%;
+      max-width: 320px;
+      text-align: center;
+    }
+
+    .modal button {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .modal .gray {
+      background: #6b7280;
     }
   </style>
 
@@ -479,6 +520,20 @@
         assetData: await db.getAll("assetData")
       };
       return new File([JSON.stringify(bundle, null, 2)], "pmpal-static.json", { type: "application/json" });
+    }
+
+    function askShare(file) {
+      const ov = document.createElement("div");
+      ov.className = "overlay";
+      ov.innerHTML = `
+    <div class="modal">
+      <p>Export ready (${Math.round(file.size / 1024)} KB)</p>
+      <button id="mShare">Share</button>
+      <button id="mCancel" class="gray">Cancel</button>
+    </div>`;
+      document.body.appendChild(ov);
+      ov.querySelector("#mCancel").onclick = () => ov.remove();
+      ov.querySelector("#mShare").onclick = async () => { ov.remove(); await shareOrDownload(file); };
     }
 
     async function exportStatic() {
@@ -706,8 +761,10 @@
 
 
       app.innerHTML = `
-        <h1>PM-pal</h1>
-        <button id="gear" class="gear">⚙</button>
+        <div class="topbar">
+          <h1>PM-pal</h1>
+          <button id="gear" class="toolsBtn">🔧</button>
+        </div>
         <button id="records">Records</button>
         <input id="search" placeholder="ID, description, or location"
                autocapitalize="characters" autocorrect="off" spellcheck="false">
@@ -1081,9 +1138,7 @@
       document.getElementById("expStatic").onclick = async () => {
         try {
           const file = await buildStaticFile();
-          if (confirm(`Export ready (${Math.round(file.size / 1024)} KB). Share it now?`)) {
-            await shareOrDownload(file);
-          }
+          askShare(file);
         } catch (err) {
           if (err.name !== "AbortError") alert("Export failed: " + err);
         }
