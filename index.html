@@ -51,15 +51,23 @@
     }
 
     .card {
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 12px;
-      margin-top: 8px;
+      background-size: cover;
+      background-position: center;
     }
 
-    .card.due {
-      background: #fff4c2;
-      border-color: #f5b800;
+    .card.hasPhoto {
+      min-height: 96px;
+    }
+
+    .card.hasPhoto .info {
+      display: inline-block;
+      max-width: 100%;
+      background: rgba(0, 0, 0, .35);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      color: #fff;
+      border-radius: 10px;
+      padding: 6px 10px;
     }
 
     .id {
@@ -439,6 +447,16 @@
     .modal .gray {
       background: #6b7280;
     }
+
+    .card.hasPhoto {
+      background-image: var(--photo);
+    }
+
+    .card.due.hasPhoto {
+      background-image:
+        linear-gradient(rgba(255, 214, 0, .45), rgba(255, 214, 0, .45)),
+        var(--photo);
+    }
   </style>
 
 </head>
@@ -667,6 +685,17 @@
       }
     }
 
+    async function addCardPhotos() {
+      const db = await dbPromise;
+      for (const card of document.querySelectorAll("#results .card")) {
+        const photo = await db.get("photos", card.dataset.id);
+        if (photo) {
+          card.style.setProperty("--photo", `url('${photo}')`);
+          card.classList.add("hasPhoto");
+        }
+      }
+    }
+
     async function patchAssetData(id, patch) {
       const db = await dbPromise;
       const prev = (await db.get("assetData", id)) || { id };
@@ -859,10 +888,14 @@
           (!q && hits.length ? `<h3>Due this month</h3>` : "") +
           hits.map(a => `
       <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
-        <div class="id">${esc(a.id)}</div>
-        <div class="desc">${esc(a.description)}</div>
-        <div class="loc">${esc(a.location)}</div>
+        <div class="info">
+          <div class="id">${esc(a.id)}</div>
+          <div class="desc">${esc(a.description)}</div>
+          <div class="loc">${esc(a.location)}</div>
+        </div>
       </div>`).join("");
+
+        addCardPhotos();
       }
 
       document.getElementById("search").oninput = e => runSearch(e.target.value);
