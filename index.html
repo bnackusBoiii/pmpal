@@ -491,7 +491,7 @@
       border-radius: 12px;
       width: 92%;
       max-width: 480px;
-      max-height: 80vh;
+      max-height: 92%;
       display: flex;
       flex-direction: column;
       padding: 14px;
@@ -1435,6 +1435,17 @@
   </div>`;
       document.body.appendChild(ov);
 
+      function fitPicker() {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        ov.style.top = vv.offsetTop + "px";
+        ov.style.height = vv.height + "px";
+        ov.style.bottom = "auto";
+      }
+      window.visualViewport?.addEventListener("resize", fitPicker);
+      window.visualViewport?.addEventListener("scroll", fitPicker);
+      fitPicker();
+
       const box = ov.querySelector("#pResults");
       const search = ov.querySelector("#pSearch");
       const byId = async ids => (await Promise.all(ids.map(id => db.get("assets", id)))).filter(Boolean);
@@ -1460,13 +1471,20 @@
         const i = toolsUsed.indexOf(c.dataset.id);
         i === -1 ? toolsUsed.push(c.dataset.id) : toolsUsed.splice(i, 1);
         syncChecks();
+        drawPicked();
       };
 
       search.oninput = () => draw(search.value);
       search.onfocus = stopScan;
       ov.querySelector("#pScan").onclick = e =>
         scanner ? stopScan() : startScan("pReader", e.target, t => { search.value = t; draw(t); });
-      ov.querySelector("#pDone").onclick = () => { stopScan(); ov.remove(); onDone(); };
+      ov.querySelector("#pDone").onclick = () => {
+        stopScan();
+        window.visualViewport?.removeEventListener("resize", fitPicker);
+        window.visualViewport?.removeEventListener("scroll", fitPicker);
+        ov.remove();
+        onDone();
+      };
 
       function drawPicked() {
         pickedBox.innerHTML = toolsUsed.length
@@ -1483,9 +1501,8 @@
         const b = e.target.closest("[data-prm]");
         if (!b) return;
         toolsUsed.splice(+b.dataset.prm, 1);
-        drawPicked();
         syncChecks();
-
+        drawPicked();
       };
 
       draw("");
