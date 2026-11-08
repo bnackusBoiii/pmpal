@@ -1060,7 +1060,9 @@
 
     async function showAssetScreen(asset) {
       stopScan();
-      const photo = await (await dbPromise).get("photos", asset.id);
+      const db = await dbPromise;
+      const photo = await db.get("photos", asset.id);
+      const data = await db.get("assetData", asset.id);
       const bg = photo
         ? `style="background-image: url('${photo}')"`
         : "";
