@@ -1060,7 +1060,7 @@
 
     async function showAssetScreen(asset) {
       stopScan();
-      
+
       const db = await dbPromise;
       const photo = await db.get("photos", asset.id);
       const data = await db.get("assetData", asset.id);
@@ -1347,9 +1347,8 @@
         });
 
 
-        document.getElementById("cancel").onclick = () => {
-          showAssetScreen(asset);
-        };
+        document.getElementById("cancel").onclick = () => onDone();
+
         document.getElementById("addStep").onclick = () => {
           p.steps.push({ key: "", label: "New step", kind: "check", required: false });
           draw();
@@ -1368,15 +1367,13 @@
           try {
             await (await dbPromise).put("procedures", p);
             await loadProcs();
-            toast("Saved ✓");
-
-            showAssetScreen(asset);
-
           } catch (err) {
-            toast("Save failed");
-            await loadProcs();
-            showProcList();
+            toast("Save failed", true);
+            return;                    // stay on the editor so nothing typed is lost
           }
+
+          toast("Saved ✓");
+          onDone();
 
 
         };
