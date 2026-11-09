@@ -876,10 +876,10 @@
   dueIds = new Set();
 
   for (const d of data) {
-    if (!d.pmAnchor || !d.procedure) continue;
+    if (!d.pmAnchor) continue;
 
-    // Find assigned PM procedure
-    const proc = procs.find(p => p.id === d.procedure);
+    // Find procedure based on asset description
+    const proc = findProcedure(d);
     if (!proc) continue;
 
     const interval = Number(proc.intervalMonths);
@@ -889,14 +889,15 @@
     const [y, m] = d.pmAnchor.split("-");
     const anchorIdx = Number(y) * 12 + (Number(m) - 1);
 
-    // Check whether current month falls on the PM cycle
+    // Check PM cycle
     const gap = nowIdx - anchorIdx;
 
     if (gap >= 0 && gap % interval === 0) {
       dueIds.add(d.id);
     }
   }
-      toast(`Due assets found: ${dueIds.size}`);
+
+  toast(`Due assets found: ${dueIds.size}`);
 }
 
     function formatRecord(template, rec) {
