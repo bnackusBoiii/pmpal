@@ -587,6 +587,8 @@
   <script>
     const app = document.getElementById("app");
 
+    const dueIds = new Set();
+    
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
