@@ -867,27 +867,36 @@
     }
 
     async function loadDue() {
-      const db = await dbPromise;
-      const [recs, data] = await Promise.all([db.getAll("records"), db.getAll("assetData")]);
+  const db = await dbPromise;
+  const data = await db.getAll("assetData");
 
-      const idx = (y, m) => y * 12 + m;
-      const n = new Date(), nowIdx = idx(n.getFullYear(), n.getMonth());
+  const now = new Date();
+  const nowIdx = now.getFullYear() * 12 + now.getMonth();
 
-      const latest = {};
-      recs.forEach(r => { if (!latest[r.assetId] || r.date > latest[r.assetId].date) latest[r.assetId] = r; });
+  dueIds = new Set();
 
-      dueIds = new Set();
-      for (const d of data) {
-        if (!d.pmAnchor || !latest[d.id]) continue;
-        const [y, m] = d.pmAnchor.split("-");
-        const interval = procs.find(p => p.id === latest[d.id].procedure)?.intervalMonths;
-        const gap = nowIdx - idx(+y, +m - 1);
-        if (!interval || (((gap % interval) + interval) % interval) !== 0) continue;
+  for (const d of data) {
+    if (!d.pmAnchor || !d.procedure) continue;
 
-        const last = new Date(latest[d.id].date);
-        if (idx(last.getFullYear(), last.getMonth()) !== nowIdx) dueIds.add(d.id);   // not already done this month
-      }
+    // Find assigned PM procedure
+    const proc = procs.find(p => p.id === d.procedure);
+    if (!proc) continue;
+
+    const interval = Number(proc.intervalMonths);
+    if (![3, 6, 12, 24].includes(interval)) continue;
+
+    // Calculate anchor month
+    const [y, m] = d.pmAnchor.split("-");
+    const anchorIdx = Number(y) * 12 + (Number(m) - 1);
+
+    // Check whether current month falls on the PM cycle
+    const gap = nowIdx - anchorIdx;
+
+    if (gap >= 0 && gap % interval === 0) {
+      dueIds.add(d.id);
     }
+  }
+}
 
     function formatRecord(template, rec) {
       const data = {
