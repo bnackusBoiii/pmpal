@@ -901,7 +901,7 @@
 
     function recordText(r) {
       const proc = procs.find(p => p.id === r.procedure);
-      return formatRecord(proc?.exportTemplate || DEFAULT_TEMPLATE, r);
+      return formatRecord(proc?.exportTemplate || "PM passed.", r);
     }
 
     async function loadRecords() {
@@ -1077,7 +1077,7 @@
       };
 
       document.getElementById("records").onclick = e => {
-        showRecordsScreen().catch(err => alert(err));
+        showRecordsScreen();
       };
 
       document.getElementById("gear").onclick = () => { stopScan(); showToolsScreen(); };
