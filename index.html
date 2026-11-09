@@ -890,6 +890,7 @@
     function formatRecord(template, rec) {
       const data = {
         id: rec.assetId,
+        tech: rec.techId,
         date: rec.date.slice(0, 10),
         nextDue: rec.nextDue,
         ...rec.values,
@@ -1178,6 +1179,10 @@
           <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
           <div class="assetLoc">${esc(asset.location)}</div>
         </div>
+        <label class="field">Tech ID
+          <input id="techId" autocapitalize="characters" autocorrect="off" spellcheck="false"
+          value="${esc(existing?.techId ?? localStorage.getItem("techId") ?? "")}">
+        </label>
         ${fields}
         <h3>Equipment used</h3>
         <div id="toolsBox"></div>
@@ -1234,6 +1239,10 @@
           return;
         }
 
+        const techId = document.getElementById("techId").value.trim();
+        if (!techId) { toast("Enter your tech ID", true); return; }
+        try { localStorage.setItem("techId", techId); } catch { }
+
         const hours = parseFloat(document.getElementById("hours").value);
         if (isNaN(hours) || hours <= 0) { toast("Enter a time charge", true); return; }
 
@@ -1245,6 +1254,7 @@
             const { key, ...rec } = existing;
             await db.put("records", {
               ...rec,
+              techId,
               values,
               toolsUsed,
               hours,
@@ -1269,6 +1279,7 @@
 
             await db.add("records", {
               assetId: asset.id,
+              techId,
               procedure: proc.id,
               version: proc.version,
               date,
