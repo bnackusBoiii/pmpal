@@ -1653,7 +1653,7 @@ async function loadDue() {
 
     // ---------- Boot ----------
     async function boot() {
-
+      await loadProcs();
       try {
         const db = await dbPromise;
         if (await db.count("assets") === 0) showImportScreen();
