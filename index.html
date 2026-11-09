@@ -865,10 +865,13 @@
       q = q.trim().toUpperCase();
       return all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20);
     }
-
-    async function loadDue() {
+async function loadDue() {
   const db = await dbPromise;
-  const data = await db.getAll("assetData");
+
+  const [data, assets] = await Promise.all([
+    db.getAll("assetData"),
+    db.getAll("assets")
+  ]);
 
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
@@ -878,8 +881,12 @@
   for (const d of data) {
     if (!d.pmAnchor) continue;
 
-    // Find procedure based on asset description
-    const proc = findProcedure(d);
+    // Find corresponding asset
+    const asset = assets.find(a => a.id === d.id);
+    if (!asset || !asset.description) continue;
+
+    // Determine PM procedure from asset description
+    const proc = findProcedure(asset);
     if (!proc) continue;
 
     const interval = Number(proc.intervalMonths);
