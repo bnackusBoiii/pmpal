@@ -55,6 +55,7 @@
       background-position: center;
       border-radius: 12px;
       min-height: 96px;
+      background-color: whitesmoke;
 
     }
 
@@ -558,6 +559,19 @@
       align-items: center;
       justify-content: center;
     }
+
+    .btnRow {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btnRow button {
+      flex: 1;
+      width: auto;
+      padding: 8px;
+      margin: 0;
+    }
   </style>
 
 </head>
@@ -593,7 +607,7 @@
 
     const blankProc = {
       id: "blank", name: "General PM", version: 1, intervalMonths: 12,
-      match: [], exportTemplate: "{id} | {date} | {tools}", steps: []
+      match: [], exportTemplate: "PM Passed", steps: []
     };
 
     const cardHTML = a => `
@@ -1423,8 +1437,11 @@
       <div class="card">
         <div class="id">${esc(r.assetId)} ${r.exported ? "✓" : ""}</div>
         <div class="desc">${esc(r.date.slice(0, 10))} · due ${esc(r.nextDue)}</div>
-        <button data-edit="${r.key}">Edit</button>
-        <button class="danger" data-del="${r.key}">Delete</button>
+        <div class="loc">${esc(recordText(r))}</div>
+        <div class="btnRow">
+          <button data-edit="${r.key}">Edit</button>
+          <button class="danger" data-del="${r.key}">Delete</button>
+        </div>
       </div>`).join("")}`;
 
       document.getElementById("back").onclick = showHomeScreen;
