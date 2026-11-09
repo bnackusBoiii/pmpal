@@ -1050,7 +1050,7 @@
         <div id="results"></div>`;
 
       all = await (await dbPromise).getAll("assets");
-      await loadDue();
+      await loadDue().catch(err => alert(err));;
       runSearch("");
 
       function runSearch(q) {
