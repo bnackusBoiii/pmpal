@@ -872,7 +872,14 @@
     }
 
     function formatRecord(template, rec) {
-      const data = { id: rec.assetId, date: rec.date.slice(0, 10), nextDue: rec.nextDue, ...rec.values, tools: (rec.toolsUsed || []).join(", ") };
+      const data = {
+        id: rec.assetId,
+        date: rec.date.slice(0, 10),
+        nextDue: rec.nextDue,
+        ...rec.values,
+        tools: (rec.toolsUsed || []).join(", "),
+        hours: rec.hours
+      };
       return template.replace(/\{(\w+)\}/g, (_, k) => {
         const v = data[k];
         return v === true ? "Pass" : v === false ? "Fail" : (v ?? "");
@@ -1153,6 +1160,11 @@
         ${fields}
         <h3>Equipment used</h3>
         <div id="toolsBox"></div>
+        <h3>Time charge</h3>
+        <label class="field">Hours
+          <input id="hours" type="number" inputmode="decimal" step="0.25" min="0"
+          value="${existing?.hours ?? proc.defaultHours ?? ""}">
+        </label>
         <button id="finish">Finish</button>`;
 
       function renderTools() {
@@ -1201,6 +1213,9 @@
           return;
         }
 
+        const hours = parseFloat(document.getElementById("hours").value);
+        if (isNaN(hours) || hours <= 0) { toast("Enter a time charge", true); return; }
+
         try {
           const db = await dbPromise;
 
@@ -1211,6 +1226,7 @@
               ...rec,
               values,
               toolsUsed,
+              hours,
               version: proc.version,
               edited: new Date().toISOString()
             }, key);
@@ -1238,6 +1254,7 @@
               nextDue: addMonths(date, proc.intervalMonths),
               exported: false,
               values,
+              hours,
               toolsUsed
             });
 
@@ -1276,6 +1293,7 @@
         };
 
       function syncTop() {
+        p.defaultHours = Number(document.getElementById("hours").value) || 0;
         p.name = document.getElementById("name").value;
         p.intervalMonths = Number(document.getElementById("interval").value);
         p.match = document.getElementById("match").value.split(",").map(m => m.trim().toUpperCase()).filter(Boolean);
@@ -1290,6 +1308,12 @@
       }
 
       function draw() {
+
+        const slug = l => l.toLowerCase().replace(/\W+/g, "_");
+        const keyOf = s => s.key || slug(s.label);
+        const holders = ["id", "date", "nextDue", "hours", "tools",
+          ...p.steps.filter(s => s.kind !== "instruction").map(keyOf)];
+
         app.innerHTML = `
           <button id="cancel">← Cancel</button>
           <label class="field">Procedure Name <input id="name" value="${esc(p.name)}"> </label>
@@ -1298,6 +1322,9 @@
           </select></label>
           <label class="field">Matches descriptions containing <input id="match" value="${esc(p.match.join(", "))}" placeholder="Matches descriptions containing..."></label>
           <label class="field">Export template <input id="tmpl" value="${esc(p.exportTemplate || "")}" placeholder="Export template"></label>
+          <div class="holders">
+            ${holders.map(h => `<span class="chip" data-ph="${h}">{${h}}</span>`).join("")}
+          </div>
           ${p.steps.map((s, i) => `
             <div class="stepRow">
               ${s.kind === "instruction"
@@ -1318,6 +1345,9 @@
               </div>
             </div>`).join("")}
           <button id="addStep">+ Add step</button>
+          <label class="field">Default time charge (hours)
+            <input id="hours" type="number" inputmode="decimal" step="0.25" min="0" value="${p.defaultHours ?? ""}">
+          </label>
           <button id="save">Save</button>`;
         // wire handlers (below)
 
@@ -1329,7 +1359,13 @@
           };
         });
 
-
+        app.querySelectorAll("[data-ph]").forEach(c => {
+          c.onclick = () => {
+            syncTop();
+            p.exportTemplate = (p.exportTemplate || "") + `{${c.dataset.ph}}`;
+            draw();
+          };
+        });
 
         app.querySelectorAll("[data-up]").forEach(b => {
           b.onclick = () => { syncTop(); move(+b.dataset.up, +b.dataset.up - 1); };
