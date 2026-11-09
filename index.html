@@ -55,7 +55,7 @@
       background-position: center;
       border-radius: 12px;
       min-height: 96px;
-      background-color: #ccc;
+      background-color: #eeeeee;
     }
 
     .card.hasPhoto {
@@ -1077,7 +1077,7 @@
       };
 
       document.getElementById("records").onclick = e => {
-        showRecordsScreen();
+        showRecordsScreen().catch(err => alert(err));
       };
 
       document.getElementById("gear").onclick = () => { stopScan(); showToolsScreen(); };
