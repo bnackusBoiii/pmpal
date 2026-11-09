@@ -55,8 +55,7 @@
       background-position: center;
       border-radius: 12px;
       min-height: 96px;
-      background-color: whitesmoke;
-
+      background-color: #ccc;
     }
 
     .card.hasPhoto {
@@ -898,6 +897,11 @@
         const v = data[k];
         return v === true ? "Pass" : v === false ? "Fail" : (v ?? "");
       });
+    }
+
+    function recordText(r) {
+      const proc = procs.find(p => p.id === r.procedure);
+      return formatRecord(proc?.exportTemplate || DEFAULT_TEMPLATE, r);
     }
 
     async function loadRecords() {
