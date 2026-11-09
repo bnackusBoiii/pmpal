@@ -591,25 +591,10 @@
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
-    const defaultProcedures = [
-      {
-        id: "centrifuge-pm",
-        name: "Centrifuge PM",
-        version: 1,
-        intervalMonths: 12,
-        match: ["CENTRIFUGE"],
-        steps: [
-          { label: "Visual inspection, no cracks or damage", kind: "check", required: true },
-          { label: "Set speed (RPM)", kind: "number", required: true },
-          { label: "Actual speed (RPM)", kind: "number", required: true },
-          { label: "Timer accurate", kind: "check", required: true },
-          { label: "Notes", kind: "text" }
-        ]
-      }
-    ];
+
 
     const blankProc = {
-      id: "blank", name: "General PM", version: 1, intervalMonths: 12,
+      id: "blank", name: "General PM", version: 1, intervalMonths: 12, defaultHours: 0.25,
       match: [], exportTemplate: "PM Passed", steps: []
     };
 
@@ -981,9 +966,6 @@ async function loadDue() {
 
     async function loadProcs() {
       const db = await dbPromise;
-      if (await db.count("procedures") === 0) {
-        for (const p of defaultProcedures) await db.put("procedures", p);
-      }
       if (!(await db.get("procedures", "blank"))) await db.put("procedures", blankProc);
       procs = await db.getAll("procedures");
     }
