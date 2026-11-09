@@ -589,8 +589,8 @@
   <script>
     const app = document.getElementById("app");
 
-    
-    
+
+
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
     const intervals = { quarterly: 3, semiannual: 6, annual: 12, biennial: 24 };
@@ -848,51 +848,66 @@
       return { here, other };
     }
 
-    function searchAssets(q) {
+    function searchAssets(q, dueFirst = true) {
       q = q.trim().toUpperCase();
-      return all.filter(a => (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q)).slice(0, 20);
+      const hits = all.filter(a =>
+        (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q));
+
+      if (dueFirst) hits.sort((a, b) => dueIds.has(b.id) - dueIds.has(a.id));
+      return hits.slice(0, 20);
     }
-async function loadDue() {
-  const db = await dbPromise;
 
-  const [data, assets] = await Promise.all([
-    db.getAll("assetData"),
-    db.getAll("assets")
-  ]);
+    async function loadDue() {
+      const db = await dbPromise;
 
-  const now = new Date();
-  const nowIdx = now.getFullYear() * 12 + now.getMonth();
+      const [data, assets] = await Promise.all([
+        db.getAll("assetData"),
+        db.getAll("assets")
+      ]);
 
-  dueIds = new Set();
+      const now = new Date();
+      const nowIdx = now.getFullYear() * 12 + now.getMonth();
 
-  for (const d of data) {
-    if (!d.pmAnchor) continue;
+      const recs = await db.getAll("records");
+      const doneThisMonth = new Set(
+        recs
+          .filter(r => {
+            const d = new Date(r.date);
+            return d.getFullYear() * 12 + d.getMonth() === nowIdx;
+          })
+          .map(r => r.assetId)
+      );
 
-    // Find corresponding asset
-    const asset = assets.find(a => a.id === d.id);
-    if (!asset || !asset.description) continue;
+      dueIds = new Set();
 
-    // Determine PM procedure from asset description
-    const proc = findProcedure(asset);
-    if (!proc) continue;
+      for (const d of data) {
+        if (!d.pmAnchor) continue;
 
-    const interval = Number(proc.intervalMonths);
-    if (![3, 6, 12, 24].includes(interval)) continue;
+        // Find corresponding asset
+        const asset = assets.find(a => a.id === d.id);
+        if (!asset || !asset.description) continue;
 
-    // Calculate anchor month
-    const [y, m] = d.pmAnchor.split("-");
-    const anchorIdx = Number(y) * 12 + (Number(m) - 1);
+        // Determine PM procedure from asset description
+        const proc = findProcedure(asset);
+        if (!proc) continue;
 
-    // Check PM cycle
-    const gap = nowIdx - anchorIdx;
+        const interval = Number(proc.intervalMonths);
+        if (![3, 6, 12, 24].includes(interval)) continue;
 
-    if (gap >= 0 && gap % interval === 0) {
-      dueIds.add(d.id);
+        // Calculate anchor month
+        const [y, m] = d.pmAnchor.split("-");
+        const anchorIdx = Number(y) * 12 + (Number(m) - 1);
+
+        // Check PM cycle
+        const gap = nowIdx - anchorIdx;
+
+        if (gap >= 0 && gap % interval === 0 && !doneThisMonth.has(d.id)) {
+          dueIds.add(d.id);
+        }
+      }
+
+      toast(`Due assets found: ${dueIds.size}`);
     }
-  }
-
-  toast(`Due assets found: ${dueIds.size}`);
-}
 
     function formatRecord(template, rec) {
       const data = {
@@ -1578,7 +1593,7 @@ async function loadDue() {
       async function draw(q) {
         let html;
         if (q.trim()) {
-          html = searchAssets(q).map(cardHTML).join("");
+          html = searchAssets(q, false).map(cardHTML).join("");
         } else {
           const here = await byId(hist.here), other = await byId(hist.other);
           html = (here.length ? `<h3>Used on this equipment before</h3>${here.map(cardHTML).join("")}` : "")
