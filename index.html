@@ -684,18 +684,38 @@
       return new File([lines.join("\n")], "pmpal-static.csv", { type: "text/csv" });
     }
 
-    function askShare(file) {
+    function askShare(file, onSent, label = "Your file") {
+      const canShare = !!navigator.canShare?.({ files: [file] });
+
       const ov = document.createElement("div");
       ov.className = "overlay";
       ov.innerHTML = `
     <div class="modal">
-      <p>Export ready (${Math.round(file.size / 1024)} KB)</p>
-      <button id="mShare">Share</button>
+      <p><b>${esc(label)} is ready</b></p>
+      ${canShare ? `<button id="mShare">Send it</button>` : ""}
+      <button id="mSave" ${canShare ? 'class="gray"' : ""}>Save to phone</button>
       <button id="mCancel" class="gray">Cancel</button>
     </div>`;
       document.body.appendChild(ov);
+
       ov.querySelector("#mCancel").onclick = () => ov.remove();
-      ov.querySelector("#mShare").onclick = async () => { ov.remove(); await shareOrDownload(file); };
+
+      ov.querySelector("#mSave").onclick = () => {
+        saveFile(file);
+        ov.remove();
+        onSent?.();
+      };
+
+      ov.querySelector("#mShare")?.addEventListener("click", async () => {
+        try {
+          await navigator.share({ files: [file] });   // first thing in the tap, nothing awaited before it
+          ov.remove();
+          onSent?.();
+        } catch (err) {
+          if (err.name === "AbortError") return;        // they backed out of the share sheet: popup stays
+          toast("Couldn't open sharing. Use Save to phone", true);
+        }
+      });
     }
 
     async function exportStatic() {
@@ -985,33 +1005,21 @@
       toast("Saved " + file.name + " to Downloads");
     }
 
-    async function exportRecords(list) {
+    function exportRecords(list) {
       if (!list.length) { toast("Nothing to export", true); return; }
 
-      try {
-        const file = buildCloseoutXLSX(list);
+      let file;
+      try { file = buildCloseoutXLSX(list); }
+      catch (err) { alert("Export failed: " + err); return; }
 
-        let shared = false;
-        try {
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ files: [file] });
-            shared = true;
-          }
-        } catch (err) {
-          if (err.name === "AbortError") return;   // user closed the sheet: don't mark anything
-          // any other share error: fall through to the download
-        }
-        if (!shared) saveFile(file);
-
+      askShare(file, async () => {
         const db = await dbPromise;
         for (const r of list) {
           const { key, ...rec } = r;
           await db.put("records", { ...rec, exported: true }, key);
         }
         showRecordsScreen();
-      } catch (err) {
-        alert("Export failed: " + err);
-      }
+      }, `${list.length} record${list.length === 1 ? "" : "s"}`);
     }
 
     function toast(msg, bad) {
