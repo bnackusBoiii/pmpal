@@ -850,11 +850,21 @@
 
     function searchAssets(q, dueFirst = true) {
       q = q.trim().toUpperCase();
-      const hits = all.filter(a =>
-        (a.id + " " + a.description + " " + a.location).toUpperCase().includes(q));
+      if (!q) return [];
+      const word = new RegExp(`(^|[^A-Z0-9])${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^A-Z0-9])`);
 
-      if (dueFirst) hits.sort((a, b) => dueIds.has(b.id) - dueIds.has(a.id));
-      return hits.slice(0, 20);
+      const exact = [], partial = [];
+      for (const a of all) {
+        const text = (a.id + " " + a.description + " " + a.location).toUpperCase();
+        if (a.id.toUpperCase() === q || word.test(text)) exact.push(a);
+        else if (text.includes(q)) partial.push(a);
+      }
+
+      const rank = a => a.id.toUpperCase() === q ? 0 : (dueFirst && dueIds.has(a.id)) ? 1 : 2;
+      exact.sort((a, b) => rank(a) - rank(b));
+      if (dueFirst) partial.sort((a, b) => dueIds.has(b.id) - dueIds.has(a.id));
+
+      return [...exact, ...(q.length < 4 ? partial.slice(0, 50) : partial)];
     }
 
     async function loadDue() {
