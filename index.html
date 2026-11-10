@@ -586,6 +586,7 @@
   <script src="https://cdn.jsdelivr.net/npm/idb@8.0.0/build/umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const app = document.getElementById("app");
 
@@ -711,6 +712,28 @@
       } catch (err) {
         if (err.name !== "AbortError") alert("Export failed: " + err);
       }
+    }
+
+    function buildCloseoutXLSX(list) {
+      const cols = ["E NUMBER", "WORKER NUMBER", "TIME TO COMPLETE", "CLOSE MESSAGE", "EQUIPMENT USED"];
+
+      const rows = list.map(r => ({
+        "E NUMBER": r.assetId,
+        "WORKER NUMBER": /^\d+$/.test(r.techId || "") ? Number(r.techId) : (r.techId ?? ""),
+        "TIME TO COMPLETE": r.hours ?? "",
+        "CLOSE MESSAGE": recordText(r),
+        "EQUIPMENT USED": (r.toolsUsed || []).join(", ")
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows, { header: cols });
+      ws["!cols"] = [{ wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 100 }, { wch: 30 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+      const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      return new File([bytes], `closeout-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     }
 
     async function reimportAssets(file) {
@@ -851,13 +874,17 @@
     function searchAssets(q, dueFirst = true) {
       q = q.trim().toUpperCase();
       if (!q) return [];
-      const word = new RegExp(`(^|[^A-Z0-9])${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^A-Z0-9])`);
+
+      const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const words = q.split(/\s+/).filter(Boolean);
+      const wholeWord = words.map(w => new RegExp(`(^|[^A-Z0-9])${reEsc(w)}($|[^A-Z0-9])`));
 
       const exact = [], partial = [];
       for (const a of all) {
         const text = (a.id + " " + a.description + " " + a.location).toUpperCase();
-        if (a.id.toUpperCase() === q || word.test(text)) exact.push(a);
-        else if (text.includes(q)) partial.push(a);
+
+        if (a.id.toUpperCase() === q || wholeWord.every(r => r.test(text))) exact.push(a);
+        else if (words.every(w => text.includes(w))) partial.push(a);
       }
 
       const rank = a => a.id.toUpperCase() === q ? 0 : (dueFirst && dueIds.has(a.id)) ? 1 : 2;
@@ -950,23 +977,29 @@
     async function exportRecords(list) {
       if (!list.length) { toast("Nothing to export", true); return; }
 
-      const lines = list.map(r => {
-        const proc = procs.find(p => p.id === r.procedure);
-        return formatRecord(proc?.exportTemplate || "{id} | {date}", r);
-      });
-
-      const file = new File([lines.join("\n")], `pm-export-${Date.now()}.txt`, { type: "text/plain" });
-
       try {
-        await navigator.share({ files: [file] });
+        const file = buildCloseoutXLSX(list);
+
+        let shared = false;
+        try {
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            shared = true;
+          }
+        } catch (err) {
+          if (err.name === "AbortError") return;   // user closed the sheet: don't mark anything
+          // any other share error: fall through to the download
+        }
+        if (!shared) saveFile(file);
+
         const db = await dbPromise;
         for (const r of list) {
-          const { key, ...rec } = r;               // don't store the key inside the value
+          const { key, ...rec } = r;
           await db.put("records", { ...rec, exported: true }, key);
         }
         showRecordsScreen();
       } catch (err) {
-        if (err.name !== "AbortError") toast("Export failed", true);
+        alert("Export failed: " + err);
       }
     }
 
