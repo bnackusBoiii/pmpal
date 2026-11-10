@@ -974,6 +974,17 @@
         .sort((a, b) => b.date.localeCompare(a.date));   // newest first
     }
 
+    function saveFile(file) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast("Saved " + file.name + " to Downloads");
+    }
+
     async function exportRecords(list) {
       if (!list.length) { toast("Nothing to export", true); return; }
 
