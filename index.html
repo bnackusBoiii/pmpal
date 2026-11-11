@@ -1046,7 +1046,7 @@
       toast("Saved " + file.name + " to Downloads");
     }
 
-    function exportRecords(list) {
+    function exportRecords(list, after = showrecordsScreen) {
       if (!list.length) { toast("Nothing to export", true); return; }
 
       let file;
@@ -1059,7 +1059,7 @@
           const { key, ...rec } = r;
           await db.put("records", { ...rec, exported: true }, key);
         }
-        showRecordsScreen();
+        after();
       }, `${list.length} record${list.length === 1 ? "" : "s"}`);
     }
 
@@ -1177,7 +1177,7 @@
           <h1>PM-pal</h1>
           <button id="gear" class="toolsBtn">🔧</button>
         </div>
-        <button id="records">Records</button>
+        <button id="exportNew">Export New Records</button>
         <input id="search" placeholder="ID, description, or location"
                autocapitalize="characters" autocorrect="off" spellcheck="false">
         <button id="scan">Scan</button>
@@ -1217,11 +1217,18 @@
         showAssetScreen(asset);
       };
 
-      document.getElementById("records").onclick = e => {
-        showRecordsScreen();
+      const exportBtn = document.getElementById("exportNew");
+      exportBtn.onclick = async () => {
+        const recs = (await loadRecords()).filter(r => !r.exported);
+        exportRecords(recs, showHomeScreen);
       };
 
       document.getElementById("gear").onclick = () => { stopScan(); showToolsScreen(); };
+
+      loadRecords().then(recs => {
+        const n = recs.filter(r => !r.exported).length;
+        exportBtn.textContent = n ? `Export new (${n})` : "Export new";
+      }).catch(() => { });
     }
 
     async function showAssetScreen(asset) {
@@ -1614,7 +1621,7 @@
         </div>
       </div>`).join("")}`;
 
-      document.getElementById("back").onclick = showHomeScreen;
+      document.getElementById("back").onclick = showToolsScreen;
       document.getElementById("exportNew").onclick = () => exportRecords(recs.filter(r => !r.exported));
       document.getElementById("exportAll").onclick = () => exportRecords(recs);
 
@@ -1647,6 +1654,7 @@
       app.innerHTML = `
     <button id="back">← Back</button>
     <h2>Tools</h2>
+    <button id="recordsBtn">Records</button>
     <button id="expStatic">Export static data</button>
     <label class="fileBtn">Import static data <input type="file" accept=".csv" id="impStatic" hidden></label>
     <button id="expImages">Export images (ZIP)</button>
@@ -1689,6 +1697,8 @@
         if (!confirm("Replace this phone's asset list?")) { e.target.value = ""; return; }
         reimportAssets(e.target.files[0]);
       };
+
+      document.getElementById("recordsBtn").onclick = showRecordsScreen;
     }
 
     async function showToolPicker(asset, toolsUsed, onDone) {
