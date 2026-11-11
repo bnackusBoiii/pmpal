@@ -678,8 +678,10 @@
       (await db.getAll("procedures")).forEach(p =>
         lines.push(["procedure", p.id, p.version, "", JSON.stringify(p)].map(cell).join(",")));
 
-      (await db.getAll("assetData")).forEach(a =>
-        lines.push(["assetData", a.id, "", a.updated || "", JSON.stringify(a)].map(cell).join(",")));
+      (await db.getAll("assetData")).forEach(a => {
+        const { snoozed, ...clean } = a;   // snooze stays on this phone
+        lines.push(["assetData", a.id, "", a.updated || "", JSON.stringify(clean)].map(cell).join(","));
+      });
 
       return new File([lines.join("\n")], "pmpal-static.csv", { type: "text/csv" });
     }
@@ -791,7 +793,11 @@
             if (!mine || obj.version > mine.version) { await db.put("procedures", obj); nProc++; }
           } else if (type === "assetData") {
             const mine = await db.get("assetData", obj.id);
-            if (!mine || (obj.updated || "") > (mine.updated || "")) { await db.put("assetData", obj); nData++; }
+            if (!mine || (obj.updated || "") > (mine.updated || "")) {
+              // keep this phone's own snooze, since exported files never carry one
+              await db.put("assetData", { ...obj, ...(mine?.snoozed ? { snoozed: mine.snoozed } : {}) });
+              nData++;
+            }
           }
         }
 
@@ -955,6 +961,8 @@
         const [y, m] = d.pmAnchor.split("-");
         const anchorIdx = Number(y) * 12 + (Number(m) - 1);
 
+        if (d.snoozed === monthKey()) continue;
+
         // Check PM cycle
         const gap = nowIdx - anchorIdx;
 
@@ -965,6 +973,11 @@
 
       toast(`Due assets found: ${dueIds.size}`);
     }
+
+    const monthKey = () => {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+    };
 
     function formatRecord(template, rec) {
       const data = {
@@ -1036,10 +1049,18 @@
       return d.toISOString().slice(0, 10);
     }
 
+
+
     function findProcedure(asset) {
       const d = asset.description.toUpperCase();
-      return procs.find(p => p.id !== "blank" && p.match.some(m => d.includes(m)))
-        || procs.find(p => p.id === "blank");
+      let best = null, bestLen = 0;
+      for (const p of procs) {
+        if (p.id === "blank") continue;
+        for (const m of p.match) {
+          if (d.includes(m) && m.length > bestLen) { best = p; bestLen = m.length; }
+        }
+      }
+      return best || procs.find(p => p.id === "blank");
     }
 
     let procs = [];
@@ -1048,6 +1069,13 @@
       const db = await dbPromise;
       if (!(await db.get("procedures", "blank"))) await db.put("procedures", blankProc);
       procs = await db.getAll("procedures");
+    }
+
+    async function setSnooze(id, on) {
+      const db = await dbPromise;
+      const prev = (await db.get("assetData", id)) || { id };
+      if (on) prev.snoozed = monthKey(); else delete prev.snoozed;
+      await db.put("assetData", prev);   // no `updated` change on purpose
     }
 
     // ---------- Database ----------
@@ -1179,6 +1207,8 @@
         : "";
       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const anchorMonth = data?.pmAnchor ? +data.pmAnchor.split("-")[1] : 0;
+      const isDue = dueIds.has(asset.id);
+      const snoozed = data?.snoozed === monthKey();
 
       app.innerHTML = `
     <button id="back">← Back</button>
@@ -1192,6 +1222,8 @@
         <p>${esc(asset.location)}</p>
       </div>
     </div>
+    ${isDue ? `<button id="snooze" class="gray">Already done this month</button>` : ""}
+    ${snoozed ? `<button id="unsnooze" class="gray">Cleared for this month · Undo</button>` : ""}
     <label class="field">PM month
       <select id="anchor">
         <option value="">Not set</option>
@@ -1222,7 +1254,19 @@
         const year = data?.pmAnchor ? data.pmAnchor.split("-")[0] : new Date().getFullYear();
         patchAssetData(asset.id, { pmAnchor: `${year}-${String(e.target.value).padStart(2, "0")}` });
       };
-      // back + start handlers as before
+
+      document.getElementById("snooze")?.addEventListener("click", async () => {
+        await setSnooze(asset.id, true)
+        await loadDue();
+        toast("Cleared for this month ✓");
+        showAssetScreen(asset);
+      });
+
+      document.getElementById("unsnooze")?.addEventListener("click", async () => {
+        await setSnooze(asset.id, false)
+        await loadDue();
+        showAssetScreen(asset);
+      });
     }
 
     async function runProcedure(asset, proc, existing) {
