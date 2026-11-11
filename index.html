@@ -1255,11 +1255,25 @@
         patchAssetData(asset.id, { pmAnchor: `${year}-${String(e.target.value).padStart(2, "0")}` });
       };
 
+      const snoozeBtn = document.getElementById("snooze");
+      if (!snoozeBtn) {
+        if (isDue) toast("snooze button not found", true);   // it should exist when the asset is due
+      } else {
+        snoozeBtn.onclick = async () => {
+          toast("snooze tapped");                             // proves the handler runs
+          if (!confirm("Clear this PM for the month? Use this when someone else already did it.")) return;
+          await setSnooze(asset.id, true);
+          await loadDue();
+          toast("Cleared for this month ✓");
+          showAssetScreen(asset);
+        };
+      }
+
       document.getElementById("snooze")?.addEventListener("click", async () => {
         toast("Cleared for this month ✓");
         await setSnooze(asset.id, true);
         await loadDue().catch(err => alert(err));
-        
+
         showAssetScreen(asset);
       });
 
