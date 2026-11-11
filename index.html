@@ -10,6 +10,13 @@
   <meta name="theme-color" content="#1e6fd9">
 
   <style>
+    :root {
+      --due: rgba(255, 214, 0, .45);
+      --due-edge: #f5b800;
+      --due-ink: #4d3b00;
+      /* dark brown text, readable on the yellow */
+    }
+
     body {
       font-family: system-ui, sans-serif;
       margin: 0;
@@ -78,11 +85,21 @@
     }
 
     .card.due {
-      background-color:
-        rgba(255, 214, 0, .45);
-      background-image:
-        linear-gradient(rgba(255, 214, 0, .45), rgba(255, 214, 0, .45)),
-        var(--photo);
+      background-color: var(--due);
+      background-image: linear-gradient(var(--due), var(--due)), var(--photo);
+    }
+
+    #snooze {
+      background: var(--due);
+      color: var(--due-ink);
+      border: 1px solid var(--due-edge);
+      font-weight: 600;
+    }
+
+    .dueHead {
+      color: var(--due-ink);
+      border-left: 4px solid var(--due-edge);
+      padding-left: 8px;
     }
 
     .id {
@@ -575,6 +592,17 @@
       width: auto;
       padding: 8px;
       margin: 0;
+    }
+
+    .dueBadge {
+      display: inline-block;
+      background: var(--due-edge);
+      color: var(--due-ink);
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 2px 10px;
+      margin-bottom: 4px;
     }
   </style>
 
@@ -1165,7 +1193,7 @@
         const hits = q ? searchAssets(q) : all.filter(a => dueIds.has(a.id));
 
         document.getElementById("results").innerHTML =
-          (!q && hits.length ? `<h3>Due this month</h3>` : "") +
+          (!q && hits.length ? `<h3 class="dueHead">Due this month</h3>` : "") +
           hits.map(cardHTML).join("");
 
         addCardPhotos();
@@ -1217,13 +1245,14 @@
         <input type="file" accept="image/*" capture="environment" id="photo" hidden>
       </label>
       <div class="info">
+        ${isDue ? `<span class="dueBadge">DUE THIS MONTH</span>` : ""}
         <h1>${esc(asset.id)}</h1>
         <p>${esc(asset.description)}</p>
         <p>${esc(asset.location)}</p>
       </div>
     </div>
-    ${isDue ? `<button id="snooze" class="gray">Already done this month</button>` : ""}
-    ${snoozed ? `<button id="unsnooze" class="gray">Cleared for this month · Undo</button>` : ""}
+    ${isDue ? `<button id="snooze">Already done this month</button>` : ""}
+    ${snoozed ? `<button id="unsnooze">Cleared for this month · Undo</button>` : ""}
     <label class="field">PM month
       <select id="anchor">
         <option value="">Not set</option>
@@ -1256,7 +1285,7 @@
         toast("Cleared for this month ✓");
         await setSnooze(asset.id, true);
         await loadDue().catch(err => alert(err));
-        
+
         showAssetScreen(asset);
       });
 
