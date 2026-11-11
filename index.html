@@ -1245,35 +1245,18 @@
         if (!proc) { alert("No PM procedure for this equipment yet"); return; }
         runProcedure(asset, proc);
       };
-      document.getElementById("editPM").onclick = () => {
-        const proc = findProcedure(asset);
-        showProcEditor(proc, asset);
-      };
+
       document.getElementById("anchor").onchange = e => {
         if (!e.target.value) return;
         const year = data?.pmAnchor ? data.pmAnchor.split("-")[0] : new Date().getFullYear();
         patchAssetData(asset.id, { pmAnchor: `${year}-${String(e.target.value).padStart(2, "0")}` });
       };
 
-      const snoozeBtn = document.getElementById("snooze");
-      if (!snoozeBtn) {
-        if (isDue) toast("snooze button not found", true);   // it should exist when the asset is due
-      } else {
-        snoozeBtn.onclick = async () => {
-          toast("snooze tapped");                             // proves the handler runs
-          if (!confirm("Clear this PM for the month? Use this when someone else already did it.")) return;
-          await setSnooze(asset.id, true);
-          await loadDue();
-          toast("Cleared for this month ✓");
-          showAssetScreen(asset);
-        };
-      }
-
       document.getElementById("snooze")?.addEventListener("click", async () => {
         toast("Cleared for this month ✓");
         await setSnooze(asset.id, true);
         await loadDue().catch(err => alert(err));
-
+        
         showAssetScreen(asset);
       });
 
