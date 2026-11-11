@@ -1256,8 +1256,8 @@
       };
 
       document.getElementById("snooze")?.addEventListener("click", async () => {
-        await setSnooze(asset.id, true).catch(err => alert(err));
-        await loadDue();
+        await setSnooze(asset.id, true);
+        await loadDue().catch(err => alert(err));
         toast("Cleared for this month ✓");
         showAssetScreen(asset);
       });
