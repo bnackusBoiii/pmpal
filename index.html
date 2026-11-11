@@ -1653,8 +1653,10 @@
     <label class="fileBtn">Import images (ZIP) <input type="file" accept=".zip" id="impPhotos" hidden></label>
     <label class="fileBtn">Re-import asset list (CSV) <input type="file" accept=".csv" id="impAssets" hidden></label>
     <button id="clearPhotosProcs" class="danger">Delete photos + procedures (testing)</button>
+    <button id="procList">Procedures</button>
     `;
 
+      document.getElementById("procList").onclick = showProcList;
       document.getElementById("back").onclick = showHomeScreen;
       document.getElementById("expStatic").onclick = async () => {
         try {
@@ -1781,6 +1783,54 @@
       drawPicked();
       draw("");
       fitPicker();
+    }
+
+    function showProcList() {
+      stopScan();
+      app.innerHTML = `
+    <button id="back">← Back</button>
+    <h2>Procedures (${procs.length})</h2>
+    <input id="psearch" placeholder="Search procedures" autocorrect="off" spellcheck="false">
+    <button id="newProc">+ New procedure</button>
+    <div id="plist"></div>`;
+
+      const list = document.getElementById("plist");
+
+      function draw(q = "") {
+        q = q.trim().toUpperCase();
+        const shown = procs
+          .filter(p => !q || (p.name + " " + p.match.join(" ")).toUpperCase().includes(q))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        list.innerHTML = shown.map(p => `
+      <div class="card" data-id="${esc(p.id)}">
+        <div class="info">
+          <div class="id">${esc(p.name)}</div>
+          <div class="desc">${p.steps.filter(s => s.kind !== "instruction").length} steps · every ${p.intervalMonths} months · v${p.version}</div>
+          <div class="loc">${esc(p.match.join(", "))}</div>
+        </div>
+        ${p.id === "blank" ? "" : `<button class="danger" data-del="${esc(p.id)}">Delete</button>`}
+      </div>`).join("") || "<p>No procedures found.</p>";
+      }
+      draw();
+
+      document.getElementById("psearch").oninput = e => draw(e.target.value);
+      document.getElementById("back").onclick = showToolsScreen;
+      document.getElementById("newProc").onclick = () => showProcEditor(null, null, showProcList);
+
+      list.onclick = async e => {
+        const del = e.target.closest("[data-del]");
+        if (del) {
+          if (!confirm("Delete this procedure from this phone?")) return;
+          await (await dbPromise).delete("procedures", del.dataset.del);
+          await loadProcs();
+          showProcList();
+          return;
+        }
+        const card = e.target.closest(".card");
+        if (!card) return;
+        showProcEditor(procs.find(p => p.id === card.dataset.id), null, showProcList);
+      };
     }
 
     // ---------- Boot ----------
