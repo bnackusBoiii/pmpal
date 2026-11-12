@@ -1380,7 +1380,8 @@
       });
       document.getElementById("serviceOrder").onclick = () => runProcedure(asset, serviceOrderProc);
 
-      const history = (await loadRecords()).filter(r => r.assetId === asset.id);
+      const same = (a, b) => String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase();
+      const history = (await loadRecords()).filter(r => same(r.assetId, asset.id));
 
       document.getElementById("history").innerHTML = history.length
         ? history.map(r => `
