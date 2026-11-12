@@ -1343,7 +1343,9 @@
         <small>Repairs and other work</small>
       </span>
     </button>
-    ${pmRows}`;
+    ${pmRows}
+    <h3>History</h3>
+    <div id="history"></div>`;
 
       document.getElementById("photo").onchange = async e => {
         if (!e.target.files[0]) return;
@@ -1377,6 +1379,16 @@
         showAssetScreen(asset);
       });
       document.getElementById("serviceOrder").onclick = () => runProcedure(asset, serviceOrderProc);
+
+      const history = (await loadRecords()).filter(r => r.assetId === asset.id);
+
+      document.getElementById("history").innerHTML = history.length
+        ? history.map(r => `
+      <div class="card">
+        <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
+        <div class="loc">${esc(recordText(r))}</div>
+      </div>`).join("")
+        : `<p class="hint">No records yet</p>`;
     }
 
     async function runProcedure(asset, proc, existing) {
