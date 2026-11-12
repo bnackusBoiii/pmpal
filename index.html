@@ -665,6 +665,14 @@
       match: [], exportTemplate: "PM Passed", steps: []
     };
 
+    const serviceOrderProc = {
+      id: "service-order", name: "Service Order", version: 1,
+      intervalMonths: 12, defaultHours: 0.25,
+      noSchedule: true, locked: true,
+      match: [], exportTemplate: "{notes}",
+      steps: [{ key: "notes", kind: "text", required: true, label: "Notes" }]
+    };
+
     const cardHTML = a => `
   <div class="card ${dueIds.has(a.id) ? "due" : ""}" data-id="${esc(a.id)}">
     <div class="info">
@@ -1315,6 +1323,12 @@
         ${months.map((m, i) => `<option value="${i + 1}" ${anchorMonth === i + 1 ? "selected" : ""}>${m}</option>`).join("")}
       </select>
     </label>
+    <button class="pmBtn" id="serviceOrder">
+      <span class="pmText">
+        <b>Service Order</b>
+        <small>Repairs and other work</small>
+      </span>
+    </button>
     ${pmRows}`;
 
       document.getElementById("photo").onchange = async e => {
@@ -1348,6 +1362,7 @@
         await loadDue();
         showAssetScreen(asset);
       });
+      document.getElementById("serviceOrder").onclick = () => runProcedure(asset, serviceOrderProc);
     }
 
     async function runProcedure(asset, proc, existing) {
