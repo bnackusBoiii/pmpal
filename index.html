@@ -605,28 +605,34 @@
       margin: 10px;
     }
 
-    .pmBlock {
-      border: 1px solid #ddd;
+    .pmBtn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left;
+      padding: 8px 14px;
+      margin: 6px 0;
       border-radius: 12px;
-      padding: 12px;
-      margin: 10px 0;
     }
 
-    .pmBlock.due {
-      background: var(--due);
-      border-color: var(--due-edge);
+    .pmText {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
     }
 
-    .pmTitle {
-      font-weight: 700;
-      margin-bottom: 8px;
+    .pmText b {
+      font-size: 16px;
     }
 
-    .pmEvery {
-      font-weight: 400;
-      color: #666;
-      font-size: 14px;
-      margin-left: 6px;
+    .pmText small {
+      font-size: 13px;
+      opacity: .85;
+    }
+
+    .pmBtn .dueBadge {
+      margin: 0;
+      flex: none;
     }
   </style>
 
@@ -640,10 +646,10 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-  window.onerror = (msg, src, line) => {
-    document.body.innerHTML = "<pre>" + msg + " (line " + line + ")</pre>";
-  };
-</script>
+    window.onerror = (msg, src, line) => {
+      document.body.innerHTML = "<pre>" + msg + " (line " + line + ")</pre>";
+    };
+  </script>
   <script>
     const app = document.getElementById("app");
 
@@ -1083,18 +1089,14 @@
       return d.toISOString().slice(0, 10);
     }
 
+    const norm = s => String(s || "").toUpperCase().replace(/,/g, " ").replace(/\s+/g, " ").trim();
+
     function findProcedures(asset) {
-      const d = asset.description.toUpperCase();
-      let bestLen = 0, found = [];
-      for (const p of procs) {
-        if (p.id === "blank") continue;
-        const len = Math.max(0, ...p.match.filter(m => d.includes(m)).map(m => m.length));
-        if (!len) continue;
-        if (len > bestLen) { bestLen = len; found = [p]; }
-        else if (len === bestLen) found.push(p);
-      }
-      if (!found.length) return [procs.find(p => p.id === "blank")];
-      return found.sort((a, b) => a.intervalMonths - b.intervalMonths);
+      const d = norm(asset.description);
+      const found = procs.filter(p => p.id !== "blank" && p.match.some(m => norm(m) === d));
+      return found.length
+        ? found.sort((a, b) => a.intervalMonths - b.intervalMonths)
+        : [procs.find(p => p.id === "blank")];
     }
     const findProcedure = asset => findProcedures(asset)[0];   // old callers keep working
 
@@ -1284,11 +1286,13 @@
       const dueHere = dueProcs[asset.id] || new Set();
 
       const pmRows = applicable.map(p => `
-      <div class="pmBlock ${dueHere.has(p.id) ? "due" : ""}">
-        <div class="pmTitle">${esc(p.name)} <span class="pmEvery">every ${p.intervalMonths} months</span>
-          ${dueHere.has(p.id) ? `<span class="dueBadge">DUE</span>` : ""}</div>
-        <button data-start="${esc(p.id)}">Start ${esc(p.name)}</button>
-      </div>`).join("");
+      <button class="pmBtn" data-start="${esc(p.id)}">
+        <span class="pmText">
+          <b>${esc(p.name)}</b>
+          <small>Every ${p.intervalMonths} months</small>
+        </span>
+      ${dueHere.has(p.id) ? `<span class="dueBadge">DUE</span>` : ""}
+      </button>`).join("");
 
       app.innerHTML = `
     <button id="back">← Back</button>
