@@ -604,6 +604,30 @@
       padding: 2px 10px;
       margin: 10px;
     }
+
+    .pmBlock {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+
+    .pmBlock.due {
+      background: var(--due);
+      border-color: var(--due-edge);
+    }
+
+    .pmTitle {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .pmEvery {
+      font-weight: 400;
+      color: #666;
+      font-size: 14px;
+      margin-left: 6px;
+    }
   </style>
 
 </head>
@@ -950,56 +974,33 @@
 
     async function loadDue() {
       const db = await dbPromise;
-
-      const [data, assets] = await Promise.all([
-        db.getAll("assetData"),
-        db.getAll("assets")
-      ]);
-
+      const [data, recs] = await Promise.all([db.getAll("assetData"), db.getAll("records")]);
       const now = new Date();
       const nowIdx = now.getFullYear() * 12 + now.getMonth();
 
-      const recs = await db.getAll("records");
-      const doneThisMonth = new Set(
-        recs
-          .filter(r => {
-            const d = new Date(r.date);
-            return d.getFullYear() * 12 + d.getMonth() === nowIdx;
-          })
-          .map(r => r.assetId)
-      );
+      const doneNow = new Set(recs
+        .filter(r => { const d = new Date(r.date); return d.getFullYear() * 12 + d.getMonth() === nowIdx; })
+        .map(r => r.assetId + "|" + r.procedure));
 
-      dueIds = new Set();
-
+      dueIds = new Set(); dueProcs = {};
       for (const d of data) {
-        if (!d.pmAnchor) continue;
+        if (!/^\d{4}-\d\d$/.test(d.pmAnchor || "")) continue;   // skips "none" and unset
+        if (d.snoozed === monthKey()) continue;                  // snooze clears all of them
+        const asset = await db.get("assets", d.id);
+        if (!asset) continue;
 
-        // Find corresponding asset
-        const asset = assets.find(a => a.id === d.id);
-        if (!asset || !asset.description) continue;
-
-        // Determine PM procedure from asset description
-        const proc = findProcedure(asset);
-        if (!proc) continue;
-
-        const interval = Number(proc.intervalMonths);
-        if (![3, 6, 12, 24].includes(interval)) continue;
-
-        // Calculate anchor month
         const [y, m] = d.pmAnchor.split("-");
-        const anchorIdx = Number(y) * 12 + (Number(m) - 1);
+        const gap = nowIdx - (+y * 12 + (+m - 1));
 
-        if (d.snoozed === monthKey()) continue;
-
-        // Check PM cycle
-        const gap = nowIdx - anchorIdx;
-
-        if (gap >= 0 && gap % interval === 0 && !doneThisMonth.has(d.id)) {
+        for (const p of findProcedures(asset)) {
+          const interval = Number(p.intervalMonths);
+          if (![3, 6, 12, 24].includes(interval)) continue;
+          if (((gap % interval) + interval) % interval !== 0) continue;
+          if (doneNow.has(d.id + "|" + p.id)) continue;          // this PM already done this month
+          (dueProcs[d.id] ||= new Set()).add(p.id);
           dueIds.add(d.id);
         }
       }
-
-      toast(`Due assets found: ${dueIds.size}`);
     }
 
     const monthKey = () => {
@@ -1077,7 +1078,20 @@
       return d.toISOString().slice(0, 10);
     }
 
-
+    function findProcedures(asset) {
+      const d = asset.description.toUpperCase();
+      let bestLen = 0, found = [];
+      for (const p of procs) {
+        if (p.id === "blank") continue;
+        const len = Math.max(0, ...p.match.filter(m => d.includes(m)).map(m => m.length));
+        if (!len) continue;
+        if (len > bestLen) { bestLen = len; found = [p]; }
+        else if (len === bestLen) found.push(p);
+      }
+      if (!found.length) return [procs.find(p => p.id === "blank")];
+      return found.sort((a, b) => a.intervalMonths - b.intervalMonths);
+    }
+    const findProcedure = asset => findProcedures(asset)[0];   // old callers keep working
 
     function findProcedure(asset) {
       const d = asset.description.toUpperCase();
@@ -1106,7 +1120,13 @@
       await db.put("assetData", prev);   // no `updated` change on purpose
     }
 
-    // ---------- Database ----------
+    //  ██████╗  █████╗ ████████╗ █████╗ ██████╗  █████╗ ███████╗███████╗
+    //  ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝
+    //  ██║  ██║███████║   ██║   ███████║██████╔╝███████║███████╗█████╗
+    //  ██║  ██║██╔══██║   ██║   ██╔══██║██╔══██╗██╔══██║╚════██║██╔══╝
+    //  ██████╔╝██║  ██║   ██║   ██║  ██║██████╔╝██║  ██║███████║███████╗
+    //  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
+
     const dbPromise = idb.openDB("pmpal", 5, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) db.createObjectStore("assets", { keyPath: "id" });
@@ -1117,7 +1137,15 @@
       }
     });
 
-    // ---------- CSV parsing ----------
+
+    //  ██████╗ ███████╗██╗   ██╗   ██████╗  █████╗ ██████╗ ███████╗██╗███╗   ██╗ ██████╗
+    //  ██╔════╝██╔════╝██║   ██║   ██╔══██╗██╔══██╗██╔══██╗██╔════╝██║████╗  ██║██╔════╝
+    //  ██║     ███████╗██║   ██║   ██████╔╝███████║██████╔╝███████╗██║██╔██╗ ██║██║  ███╗
+    //  ██║     ╚════██║██║   ██║   ██╔═══╝ ██╔══██║██╔══██╗╚════██║██║██║╚██╗██║██║   ██║
+    //  ╚██████╗███████║╚██████╔╝   ██║     ██║  ██║██║  ██║███████║██║██║ ╚████║╚██████╔╝
+    //   ╚═════╝╚══════╝ ╚═════╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+
+
     function parseCSV(text) {
       text = text.replace(/^\uFEFF/, "");
       const rows = [];
@@ -1137,7 +1165,14 @@
       return rows;
     }
 
-    // ---------- Import ----------
+    //  ██╗███╗   ███╗██████╗  ██████╗ ██████╗ ████████╗
+    //  ██║████╗ ████║██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝
+    //  ██║██╔████╔██║██████╔╝██║   ██║██████╔╝   ██║
+    //  ██║██║╚██╔╝██║██╔═══╝ ██║   ██║██╔══██╗   ██║
+    //  ██║██║ ╚═╝ ██║██║     ╚██████╔╝██║  ██║   ██║
+    //  ╚═╝╚═╝     ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝
+
+
     async function importFile(file) {
       app.innerHTML = "<p>Importing...</p>";
       const text = await file.text();
@@ -1157,7 +1192,14 @@
       boot();
     }
 
-    // ---------- Screens ----------
+    //███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗███████╗
+    //██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║██╔════╝
+    //███████╗██║     ██████╔╝█████╗  █████╗  ██╔██╗ ██║███████╗
+    //╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║╚════██║
+    //███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║███████║
+    //╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝
+
+
     function showImportScreen() {
       app.innerHTML = `
         <h1>Import equipment list</h1>
@@ -1167,6 +1209,7 @@
 
     let all = [];
     let dueIds = new Set();
+    let dueProcs = {};   // asset id -> Set of procedure ids due this month
 
     async function showHomeScreen() {
       stopScan();
@@ -1244,6 +1287,15 @@
       const anchorMonth = data?.pmAnchor ? +data.pmAnchor.split("-")[1] : 0;
       const isDue = dueIds.has(asset.id);
       const snoozed = data?.snoozed === monthKey();
+      const applicable = findProcedures(asset);
+      const dueHere = dueProcs[asset.id] || new Set();
+
+      const pmRows = applicable.map(p => `
+      <div class="pmBlock ${dueHere.has(p.id) ? "due" : ""}">
+        <div class="pmTitle">${esc(p.name)} <span class="pmEvery">every ${p.intervalMonths} months</span>
+          ${dueHere.has(p.id) ? `<span class="dueBadge">DUE</span>` : ""}</div>
+        <button data-start="${esc(p.id)}">Start ${esc(p.name)}</button>
+      </div>`).join("");
 
       app.innerHTML = `
     <button id="back">← Back</button>
@@ -1266,7 +1318,7 @@
         ${months.map((m, i) => `<option value="${i + 1}" ${anchorMonth === i + 1 ? "selected" : ""}>${m}</option>`).join("")}
       </select>
     </label>
-    <button id="start">Start PM</button>`;
+    ${pmRows}`;
 
       document.getElementById("photo").onchange = async e => {
         if (!e.target.files[0]) return;
@@ -1276,11 +1328,9 @@
       };
 
       document.getElementById("back").onclick = showHomeScreen;
-      document.getElementById("start").onclick = () => {
-        const proc = findProcedure(asset);
-        if (!proc) { alert("No PM procedure for this equipment yet"); return; }
-        runProcedure(asset, proc);
-      };
+
+      app.querySelectorAll("[data-start]").forEach(b => b.onclick = () =>
+        runProcedure(asset, procs.find(p => p.id === b.dataset.start)));
 
       document.getElementById("anchor").onchange = e => {
         if (!e.target.value) return;
@@ -1373,7 +1423,7 @@
         showProcEditor(
           proc.id === "blank" ? null : proc,
           asset,
-          () => runProcedure(asset, findProcedure(asset) || proc, existing)
+          () => runProcedure(asset, procs.find(p => p.id === proc.id) || proc, existing)
         );
       };
 
@@ -1843,7 +1893,14 @@
       };
     }
 
-    // ---------- Boot ----------
+    //  ██████╗  ██████╗  ██████╗ ████████╗
+    //  ██╔══██╗██╔═══██╗██╔═══██╗╚══██╔══╝
+    //  ██████╔╝██║   ██║██║   ██║   ██║
+    //  ██╔══██╗██║   ██║██║   ██║   ██║
+    //  ██████╔╝╚██████╔╝╚██████╔╝   ██║
+    //  ╚═════╝  ╚═════╝  ╚═════╝    ╚═╝
+
+
     async function boot() {
       await loadProcs();
       try {
