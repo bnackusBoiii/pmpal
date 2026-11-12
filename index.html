@@ -1461,14 +1461,17 @@
 
       document.getElementById("back").onclick = () => showAssetScreen(asset);
 
-      document.getElementById("editProc").onclick = () => {
-        if (!confirm("Entries on this page will be lost. Edit the procedure?")) return;
+      const editBtn = document.getElementById("editProc");
+      if (editBtn) editBtn.onclick = () => {
+        document.getElementById("editProc").onclick = () => {
+          if (!confirm("Entries on this page will be lost. Edit the procedure?")) return;
 
-        showProcEditor(
-          proc.id === "blank" ? null : proc,
-          asset,
-          () => runProcedure(asset, procs.find(p => p.id === proc.id) || proc, existing)
-        );
+          showProcEditor(
+            proc.id === "blank" ? null : proc,
+            asset,
+            () => runProcedure(asset, procs.find(p => p.id === proc.id) || proc, existing)
+          );
+        };
       };
 
       document.getElementById("finish").onclick = async () => {
