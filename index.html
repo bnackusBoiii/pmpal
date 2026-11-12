@@ -1515,14 +1515,10 @@
         ? structuredClone(proc)
         : {
           id: crypto.randomUUID(),
-          name: asset?.description
-            ? asset.description.toLowerCase() + " Procedure"
-            : "New Procedure",
+          name: asset?.description ? asset.description.toLowerCase() + " Procedure" : "New Procedure",
           version: 0,
           intervalMonths: 12,
-          match: asset.description
-            ? [asset.description.toUpperCase()]
-            : [],
+          match: asset?.description ? [asset.description.toUpperCase()] : [],
           steps: []
         };
 
