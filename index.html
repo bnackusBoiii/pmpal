@@ -1394,7 +1394,7 @@
 
       app.innerHTML = `
         <button id="back">← Back</button>
-        <button id="editProc" class="toolsBtn">✏️ Edit procedure</button>
+        ${proc.locked ? "" : `<button id="editProc" class="toolsBtn">✏️ Edit procedure</button>`}
         <div class="runHead">
           <h2>${esc(proc.name)}</h2>
           <div class="assetLine"><b>${esc(asset.id)}</b> · ${esc(asset.description)}</div>
