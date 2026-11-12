@@ -1093,18 +1093,6 @@
     }
     const findProcedure = asset => findProcedures(asset)[0];   // old callers keep working
 
-    function findProcedure(asset) {
-      const d = asset.description.toUpperCase();
-      let best = null, bestLen = 0;
-      for (const p of procs) {
-        if (p.id === "blank") continue;
-        for (const m of p.match) {
-          if (d.includes(m) && m.length > bestLen) { best = p; bestLen = m.length; }
-        }
-      }
-      return best || procs.find(p => p.id === "blank");
-    }
-
     let procs = [];
 
     async function loadProcs() {
