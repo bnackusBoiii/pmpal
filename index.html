@@ -1383,12 +1383,17 @@
       const same = (a, b) => String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase();
       const history = (await loadRecords()).filter(r => same(r.assetId, asset.id));
 
+
+
       document.getElementById("history").innerHTML = history.length
-        ? history.map(r => `
-      <div class="card">
-        <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
-        <div class="loc">${esc(recordText(r))}</div>
-      </div>`).join("")
+        ? history.map(r => {
+          try {
+            return
+            `<div class="card">
+            <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
+            <div class="loc">${esc(recordText(r))}</div>
+            </div>`;
+          } catch { return ""; }}).join("")
         : `<p class="hint">No records yet</p>`;
     }
 
