@@ -1388,8 +1388,7 @@
       document.getElementById("history").innerHTML = history.length
         ? history.map(r => {
           try {
-            return
-            `<div class="card">
+            return `<div class="card">
             <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
             <div class="loc">${esc(recordText(r))}</div>
             </div>`;
