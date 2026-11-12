@@ -1129,6 +1129,7 @@
       if (!(await db.get("procedures", "blank"))) await db.put("procedures", blankProc);
       procs = await db.getAll("procedures");
     }
+    const getProc = id => id === serviceOrderProc.id ? serviceOrderProc : procs.find(p => p.id === id);
 
     async function setSnooze(id, on) {
       const db = await dbPromise;
