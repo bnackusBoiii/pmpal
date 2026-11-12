@@ -1797,7 +1797,8 @@
         reimportAssets(e.target.files[0]);
       };
 
-      document.getElementById("recordsBtn").onclick = showRecordsScreen;
+      document.getElementById("recordsBtn").onclick = () =>
+  showRecordsScreen().catch(err => alert("Records: " + err));
     }
 
     async function showToolPicker(asset, toolsUsed, onDone) {
