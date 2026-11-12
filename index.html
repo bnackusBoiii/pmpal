@@ -634,6 +634,19 @@
       margin: 0;
       flex: none;
     }
+
+    .step textarea {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      font: inherit;
+      font-size: 16px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      resize: none;
+      overflow: hidden;
+    }
   </style>
 
 </head>
@@ -1039,7 +1052,8 @@
       };
       return template.replace(/\{(\w+)\}/g, (_, k) => {
         const v = data[k];
-        return v === true ? "Pass" : v === false ? "Fail" : (v ?? "");
+        return v === true ? "Pass" : v === false ? "Fail"
+          : String(v ?? "").replace(/\s*[\r\n]+\s*/g, " ");
       });
     }
 
@@ -1382,7 +1396,7 @@
         const input =
           s.kind === "check" ? `<input type="checkbox" id="f${i}">` :
             s.kind === "number" ? `<input type="number" inputmode="decimal" value="${esc(pre)}" id="f${i}">` :
-              `<input type="text" value="${esc(pre)}" id="f${i}">`;
+              `<textarea class="grow" rows="1" id="f${i}">${esc(pre)}</textarea>`
 
 
 
@@ -1413,6 +1427,12 @@
           value="${existing?.hours ?? proc.defaultHours ?? ""}">
         </label>
         <button id="finish">Finish</button>`;
+
+      app.querySelectorAll("textarea.grow").forEach(t => {
+        const fit = () => { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; };
+        t.addEventListener("input", fit);
+        fit();   // sizes it right away for remembered values that are already long
+      });
 
       function renderTools() {
         document.getElementById("toolsBox").innerHTML =
