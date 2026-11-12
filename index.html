@@ -1058,8 +1058,8 @@
     }
 
     function recordText(r) {
-      const proc = procs.find(p => p.id === r.procedure);
-      return formatRecord(proc?.exportTemplate || "PM passed.", r);
+      const proc = getProc(r.procedure);
+      return formatRecord(proc?.exportTemplate || DEFAULT_TEMPLATE, r);
     }
 
     async function loadRecords() {
@@ -1392,7 +1392,8 @@
             <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
             <div class="loc">${esc(recordText(r))}</div>
             </div>`;
-          } catch { return ""; }}).join("")
+          } catch { return ""; }
+        }).join("")
         : `<p class="hint">No records yet</p>`;
     }
 
@@ -1732,8 +1733,8 @@
 
         if (b.dataset.edit !== undefined) {
           const rec = recs.find(r => r.key === +b.dataset.edit);
-          const proc = procs.find(p => p.id === rec.procedure);
-          const asset = all.find(a => a.id === rec.assetId);
+          const proc = getProc(rec.procedure);
+          const asset = await (await dbPromise).get("assets", rec.assetId);
           if (!proc || !asset) { toast("Can't edit: procedure or asset missing", true); return; }
           runProcedure(asset, proc, rec);
           return;
