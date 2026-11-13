@@ -1533,12 +1533,7 @@
             const date = new Date().toISOString();
 
             const data = await db.get("assetData", asset.id);
-            if (!data?.pmAnchor) {
-              const n = new Date();
-              await patchAssetData(asset.id, {
-                pmAnchor: `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`
-              });
-            }
+            
 
             await db.add("records", {
               assetId: asset.id,
