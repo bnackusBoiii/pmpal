@@ -1246,7 +1246,7 @@
         <div id="results"></div>`;
 
       all = await (await dbPromise).getAll("assets");
-      
+
       loadRecords().then(recs => {
         const n = recs.filter(r => !r.exported).length;
         exportBtn.textContent = n ? `Export new (${n})` : "Export new";
@@ -1280,17 +1280,25 @@
 
 
       await loadDue();
-      
+
 
       runSearch("");
 
-      function runSearch(q) {
+      async function runSearch(q) {
         q = q.trim().toUpperCase();
         const hits = q ? searchAssets(q) : all.filter(a => dueIds.has(a.id));
 
-        document.getElementById("results").innerHTML =
-          (!q && hits.length ? `<h3 class="dueHead">Due this month</h3>` : "") +
-          hits.map(cardHTML).join("");
+        const results = document.getElementById("results");
+
+        results.innerHTML =
+          (!q && hits.length ? `<h3 class="dueHead">Due this month</h3>` : "");
+
+        for (const hit of hits) {
+          results.insertAdjacentHTML("beforeend", cardHTML(hit));
+
+          // Give the browser time to render the new card
+          await new Promise(requestAnimationFrame);
+        }
 
         addCardPhotos();
       }
