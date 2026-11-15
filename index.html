@@ -1247,6 +1247,10 @@
 
       all = await (await dbPromise).getAll("assets");
       
+      loadRecords().then(recs => {
+        const n = recs.filter(r => !r.exported).length;
+        exportBtn.textContent = n ? `Export new (${n})` : "Export new";
+      }).catch(() => { });
 
       const search = document.getElementById("search");
       const btn = document.getElementById("scan");
@@ -1276,10 +1280,7 @@
 
 
       await loadDue();
-      loadRecords().then(recs => {
-        const n = recs.filter(r => !r.exported).length;
-        exportBtn.textContent = n ? `Export new (${n})` : "Export new";
-      }).catch(() => { });
+      
 
       runSearch("");
 
