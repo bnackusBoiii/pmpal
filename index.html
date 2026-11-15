@@ -666,7 +666,21 @@
   <script>
     const app = document.getElementById("app");
 
+    let currentGoBack = () => { };
 
+    function setGoBack(fn) {
+      currentGoBack = fn;
+    }
+
+    // Keep the app inside its own history entry
+    history.pushState({ app: true }, "");
+
+    window.addEventListener("popstate", () => {
+      currentGoBack();
+
+      // Restore the app's history entry
+      history.pushState({ app: true }, "");
+    });
 
     const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -1368,6 +1382,7 @@
       };
 
       document.getElementById("back").onclick = showHomeScreen;
+      setGoBack(showHomeScreen);
 
       app.querySelectorAll("[data-start]").forEach(b => b.onclick = () =>
         runProcedure(asset, procs.find(p => p.id === b.dataset.start)));
@@ -1491,6 +1506,7 @@
       renderTools();
 
       document.getElementById("back").onclick = () => goBack();
+      setGoBack(goBack);
 
       const editBtn = document.getElementById("editProc");
       if (editBtn) editBtn.onclick = () => {
@@ -1700,6 +1716,7 @@
         // data-up:  swap p.steps[i] with p.steps[i - 1]; draw()
 
         document.getElementById("cancel").onclick = () => onDone();
+        setGoBack(onDone);
 
         document.getElementById("save").onclick = async () => {
           syncTop();   // if you have it; otherwise keep your four p.name / p.intervalMonths / p.match / p.exportTemplate lines
@@ -1741,6 +1758,7 @@
       </div>`).join("")}`;
 
       document.getElementById("back").onclick = showToolsScreen;
+      setGoBack(showToolsScreen);
       document.getElementById("exportNew").onclick = () => exportRecords(recs.filter(r => !r.exported));
       document.getElementById("exportAll").onclick = () => exportRecords(recs);
 
@@ -1785,6 +1803,7 @@
 
       document.getElementById("procList").onclick = showProcList;
       document.getElementById("back").onclick = showHomeScreen;
+      setGoBack(showHomeScreen);
       document.getElementById("expStatic").onclick = async () => {
         try {
           askShare(await buildStaticCSV());
@@ -1890,6 +1909,13 @@
         ov.remove();
         onDone();
       };
+      setGoBack(() => {
+        stopScan();
+        window.visualViewport?.removeEventListener("resize", fitPicker);
+        window.visualViewport?.removeEventListener("scroll", fitPicker);
+        ov.remove();
+        onDone();
+      });
 
       function drawPicked() {
         pickedBox.innerHTML = toolsUsed.length
@@ -1946,6 +1972,7 @@
 
       document.getElementById("psearch").oninput = e => draw(e.target.value);
       document.getElementById("back").onclick = showToolsScreen;
+      setGoBack(showToolsScreen);
       document.getElementById("newProc").onclick = () => showProcEditor(null, null, showProcList);
 
       list.onclick = async e => {
