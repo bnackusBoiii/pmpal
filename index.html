@@ -1392,13 +1392,25 @@
             return `<div class="card">
             <div class="id">${esc(r.date.slice(0, 10))} · ${esc(getProc(r.procedure)?.name || r.procedure)}</div>
             <div class="loc">${esc(recordText(r))}</div>
+            <button class="gray" data-edit="${r.key}">Edit</button>
             </div>`;
           } catch { return ""; }
         }).join("")
         : `<p class="hint">No records yet</p>`;
+
+      document.getElementById("history").onclick = e => {
+        const b = e.target.closest("[data-edit]");
+        if (!b) return;
+        const rec = history.find(r => r.key === +b.dataset.edit);
+        const proc = rec && getProc(rec.procedure);
+        if (!proc) { toast("Can't edit: procedure missing", true); return; }
+        if (rec.exported && !confirm("This record was already exported. Changes won't reach the old system. Edit anyway?")) return;
+        runProcedure(asset, proc, rec, () => showAssetScreen(asset));
+      };
     }
 
-    async function runProcedure(asset, proc, existing) {
+    async function runProcedure(asset, proc, existing, after) {
+      const goBack = after || (existing ? showRecordsScreen : () => showAssetScreen(asset));
 
       const saved = (await (await dbPromise).get("assetData", asset.id))?.values || {};
       const toolsUsed = [...(existing?.toolsUsed || [])];
@@ -1466,7 +1478,7 @@
       }
       renderTools();
 
-      document.getElementById("back").onclick = () => showAssetScreen(asset);
+      document.getElementById("back").onclick = () => goBack();
 
       const editBtn = document.getElementById("editProc");
       if (editBtn) editBtn.onclick = () => {
@@ -1476,7 +1488,7 @@
           showProcEditor(
             proc.id === "blank" ? null : proc,
             asset,
-            () => runProcedure(asset, procs.find(p => p.id === proc.id) || proc, existing)
+            () => runProcedure(asset, getProc(proc.id) || proc, existing, after)
           );
         };
       };
@@ -1526,14 +1538,14 @@
             }, key);
 
             toast("Record updated ✓");
-            showRecordsScreen();
+            goBack();
 
           } else {
             // NEW: add a record, then remember the per-asset values
             const date = new Date().toISOString();
 
             const data = await db.get("assetData", asset.id);
-            
+
 
             await db.add("records", {
               assetId: asset.id,
@@ -1794,7 +1806,7 @@
       };
 
       document.getElementById("recordsBtn").onclick = () =>
-  showRecordsScreen().catch(err => alert("Records: " + err));
+        showRecordsScreen().catch(err => alert("Records: " + err));
     }
 
     async function showToolPicker(asset, toolsUsed, onDone) {
