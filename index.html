@@ -647,6 +647,32 @@
       resize: none;
       overflow: hidden;
     }
+
+    .searchBox {
+      position: relative;
+      display: inline-block;
+    }
+
+    .searchBox input {
+      padding-right: 35px;
+      box-sizing: border-box;
+    }
+
+    #clearSearch {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 22px;
+      color: #888;
+      cursor: pointer;
+      display: none;
+      user-select: none;
+    }
+
+    #clearSearch:hover {
+      color: #fff;
+    }
   </style>
 
 </head>
@@ -1253,8 +1279,11 @@
           <button id="exportNew">Export New Records</button>
           <button id="gear" class="toolsBtn">🔧</button>
         </div>
-        <input id="search" placeholder="ID, description, or location"
-               autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <div class="searchBox">
+          <input id="search" placeholder="ID, description, or location"
+            autocapitalize="characters" autocorrect="off" spellcheck="false">
+          <span id="clearSearch" title="Clear search">×</span>
+        </div>
         <button id="scan">Scan</button>
         <div id="reader"></div>
         <div id="results"></div>`;
@@ -1268,6 +1297,19 @@
 
       const search = document.getElementById("search");
       const btn = document.getElementById("scan");
+
+      const clearSearch = document.getElementById("clearSearch");
+
+      search.addEventListener("input", () => {
+        clearSearch.style.display = search.value ? "block" : "none";
+      });
+
+      clearSearch.addEventListener("click", () => {
+        search.value = "";
+        clearSearch.style.display = "none";
+        search.focus();
+        runSearch("");
+      });
 
       search.oninput = e => runSearch(e.target.value);
       search.onfocus = stopScan;
@@ -1396,7 +1438,7 @@
       document.getElementById("snooze")?.addEventListener("click", async () => {
         toast("Cleared for this month ✓");
         await setSnooze(asset.id, true);
-        await loadDue().catch(err => alert(err));
+        await loadDue();
 
         showAssetScreen(asset);
       });
