@@ -654,7 +654,6 @@
     }
 
     .searchBox input {
-      padding-right: 35px;
       box-sizing: border-box;
     }
 
@@ -756,6 +755,29 @@
         await stopScan();
         toast("Camera unavailable", true);
       }
+    }
+
+    function touch() { try { localStorage.setItem("dbVersion", String(Date.now())); } catch { } }
+
+    function saveDueCache() {
+      try {
+        localStorage.setItem("dueCache", JSON.stringify({
+          month: monthKey(),
+          version: localStorage.getItem("dbVersion") || "0",
+          ids: [...dueIds],
+          procs: Object.fromEntries(Object.entries(dueProcs).map(([k, v]) => [k, [...v]]))
+        }));
+      } catch { }
+    }
+
+    function dueCacheFresh() {          // fills dueIds/dueProcs and returns true only if it's still valid
+      try {
+        const c = JSON.parse(localStorage.getItem("dueCache"));
+        if (!c || c.month !== monthKey() || c.version !== (localStorage.getItem("dbVersion") || "0")) return false;
+        dueIds = new Set(c.ids);
+        dueProcs = Object.fromEntries(Object.entries(c.procs).map(([k, v]) => [k, new Set(v)]));
+        return true;
+      } catch { return false; }
     }
 
     async function shareOrDownload(file) {
