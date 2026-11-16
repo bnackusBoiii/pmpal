@@ -1330,22 +1330,17 @@
 
       let searchRun = 0;
 
-      async function runSearch(q) {
-        const run = ++searchRun;
+      function runSearch(q) {
         q = q.trim().toUpperCase();
-        const results = document.getElementById("results");
-        if (!all.length) { results.innerHTML = `<p class="hint">Loading equipment…</p>`; return; }
+        if (!all.length) { document.getElementById("results").innerHTML = `<p class="hint">Loading equipment…</p>`; return; }
 
         const hits = q ? searchAssets(q) : all.filter(a => dueIds.has(a.id));
-        results.innerHTML = !q && hits.length ? `<h3 class="dueHead">Due this month</h3>` : "";
 
-        const BATCH = 12;
-        for (let i = 0; i < hits.length; i += BATCH) {
-          if (run !== searchRun) return;                       // a newer search took over, stop drawing
-          results.insertAdjacentHTML("beforeend", hits.slice(i, i + BATCH).map(cardHTML).join(""));
-          await new Promise(requestAnimationFrame);
-        }
-        if (run === searchRun) addCardPhotos();
+        document.getElementById("results").innerHTML =
+          (!q && hits.length ? `<h3 class="dueHead">Due this month</h3>` : "") +
+          hits.map(cardHTML).join("");
+
+        addCardPhotos();
       }
     }
 
