@@ -1123,7 +1123,7 @@
       toast("Saved " + file.name + " to Downloads");
     }
 
-    function exportRecords(list, after = showrecordsScreen) {
+    function exportRecords(list, after = showRecordsScreen) {
       if (!list.length) { toast("Nothing to export", true); return; }
 
       let file;
